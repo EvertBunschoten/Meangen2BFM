@@ -1,15 +1,18 @@
 #!/home/evert/anaconda3/bin/python3
+# --------------------------------------------------------------------------------------------------------------- #
+# This class writes the Meangen input file according to the machine specifications provided to the user, then runs
+# Meangen and writes Parablade input files according to Meangen output. Meangen is already located in the executables
+# folder, so no installation of Meangen is required.
+# --------------------------------------------------------------------------------------------------------------- #
 import numpy as np
 import os
 import time
 from StagenReader import StagenReader
-from scipy.interpolate import interp1d
 import math
-
-
 
 class Meangen2Parablade:
 
+    # Defining some default properties.
     Compressor = True   # Machine type(if False, it's an axial turbine)
     n_stage =       1
     Dimension =     3
@@ -23,22 +26,21 @@ class Meangen2Parablade:
     stageGap =      0.5
     QO_LE =         90
     QO_TE =         90
-    tc_max =        0.1
-    x_tmax =        0.5
 
 
     def __init__(self, IN):
         # Getting the input parameters
         self.IN = IN
 
+        # Storing input parameters into the class.
         self.n_stage = int(IN["N_stage"][0])    # Stage count
         self.Dimension = int(IN["N_dim"][0])    # Parablade output dimension
         self.Omega = IN["Omega"][0]             # Rotation speed
         self.mdot = IN["mass_flow"][0]          # Mass flow rate
-        self.R_gas = IN["R_gas"][0]
-        self.gamma = IN["gamma"][0]
-        self.P_tin = IN["P_t_in"][0]
-        self.T_tin = IN["T_t_in"][0]
+        self.R_gas = IN["R_gas"][0]             # Gas constant
+        self.gamma = IN["gamma"][0]             # Specific heat ratio
+        self.P_tin = IN["P_t_in"][0]            # Inlet total pressure
+        self.T_tin = IN["T_t_in"][0]            # Inlet total temperature
         self.machineType = IN["TYPE"]           # Machine type
         self.N_b_R = IN["N_blade_R"]            # Blade count in rotor row
         self.N_b_S = IN["N_blade_S"]            # Blade count in stator row
@@ -60,20 +62,25 @@ class Meangen2Parablade:
         self.Dev_R_TE = IN["dev_R_TE"]          # Rotor deviation angles
         self.Dev_S_LE = IN["dev_S_LE"]          # Stator incidence angles
         self.Dev_S_TE = IN["dev_S_TE"]          # Stator deviation angles
-        self.t_LE_R = IN["t_le_R"]
-        self.t_TE_R = IN["t_te_R"]
-        self.t_LE_S = IN["t_le_S"]
-        self.t_TE_S = IN["t_te_S"]
-        self.D_1_R = IN["d_1_R"]
-        self.D_2_R = IN["d_2_R"]
-        self.D_1_S = IN["d_1_S"]
-        self.D_2_S = IN["d_2_S"]
+
+        # Parablade blade profile specifications(Camber-thickness parameterization)
+        self.t_LE_R = IN["t_le_R"]              # Rotor leading edge thickness
+        self.t_TE_R = IN["t_te_R"]              # Rotor trailing edge thickness
+        self.t_LE_S = IN["t_le_S"]              # Stator leading edge thickness
+        self.t_TE_S = IN["t_te_S"]              # Stator trailing edge thickness
+        self.D_1_R = IN["d_1_R"]                # Rotor leading edge distance
+        self.D_2_R = IN["d_2_R"]                # Rotor trailing edge distance
+        self.D_1_S = IN["d_1_S"]                # Stator leading edge distance
+        self.D_2_S = IN["d_2_S"]                # Stator trailing edge distance
+
+        # Setting up Bezier points for the rotor and stator surface curves.
         self.T_R = np.zeros([self.n_stage, 6])
         self.T_S = np.zeros([self.n_stage, 6])
         for i in range(self.n_stage):
             for j in range(6):
                 self.T_R[i, j] = IN["T_"+str(j+1)+"_R"][i]
                 self.T_S[i, j] = IN["T_" + str(j + 1) + "_S"][i]
+
         # Defining the machine type
         self.machineDefinition()
 
@@ -83,12 +90,15 @@ class Meangen2Parablade:
         # Getting directory to Meangen executable and initializing Meangen
         print("Starting Meangen...", end='                 ')
         start_time = time.time()
-        # meangen_dir = "/home/evert/Documents/TU_Delft_administratie/Thesis/Pythonscripts"
-        #os.system(meangen_dir + "/a.out < "+meangen_dir+"/input > Output")
+
+        # Getting installation directory.
         HOME = os.environ["M2BFM"]
+
+        # Running Meangen from input file and storing process report in an output file.
         os.system("Meangen.exe < "+HOME+"templates/input > Output")
         print("Done!")
         print("Meangen took "+str(time.time() - start_time) + " seconds")
+
         # Reading stagen.dat file for blade row geometry
         S = StagenReader()
 
@@ -108,15 +118,20 @@ class Meangen2Parablade:
         start_time = time.time()
         self.ParabladeWriter()
         print("Done!")
-        print("Parablade file writing took "+ str(time.time() - start_time) + " seconds")
+        print("Parablade file writing took " + str(time.time() - start_time) + " seconds")
 
         # Storing Meangen output files
         self.storeFiles()
 
     def storeFiles(self):
-        Dir = os.getcwd()
-        if os.path.isdir("MeangenOutput"):
+        # This function stores all Meangen output files into a separate folder to maintain a relatively organized
+        # target directory.
 
+        # Getting target directory.
+        Dir = os.getcwd()
+
+        # Checking whether an output folder already exists and moving Meangen output files in it.
+        if os.path.isdir("MeangenOutput"):
             os.system("mv meangen.in "+Dir+"/MeangenOutput/")
             os.system("mv meangen.out " + Dir + "/MeangenOutput/")
             os.system("mv meandesign.out " + Dir + "/MeangenOutput/")
@@ -129,11 +144,15 @@ class Meangen2Parablade:
             os.system("mv meandesign.out " + Dir + "/MeangenOutput/")
             os.system("mv stagen.dat " + Dir + "/MeangenOutput/")
             os.system("mv Output " + Dir + "/MeangenOutput/")
+
     def meangenWriter(self):
+        # This function writes the Meangen input file from user input.
+
         # Defining meangen input file
         save_path = os.getcwd()
         filename = "meangen"
         completename = os.path.join(save_path, filename + ".in")
+
         self.f = open(completename, 'wt')  # Opening input file
         self.f.write(self.machineType + "\n")  # Defining machine type
         self.f.write(self.flowPath + "\n")  # Defining flow path
@@ -181,40 +200,56 @@ class Meangen2Parablade:
             self.f.write("Y\nY\n")
         self.f.close()
 
-    def Variables(self, R, phi, psi, r_m, chords, rowGap, Twist, QO_LE, QO_TE, tc_m, x_tm):
-        self.R = R * np.ones([self.n_stage, 1])
-        self.phi = phi * np.ones([self.n_stage, 1])
-        self.psi = psi * np.ones([self.n_stage, 1])
-        self.r_m = r_m * np.ones([self.n_stage, 1])
-        self.chords = chords * np.ones([self.n_stage, 2])
-        self.rowGap = rowGap * np.ones([self.n_stage, 1])
-        self.Twist = Twist*np.ones([self.n_stage, 1])
-        self.QO_LE = QO_LE*np.ones([self.n_stage, 2])
-        self.QO_TE = QO_TE*np.ones([self.n_stage, 2])
-        self.tc_m = tc_m * np.ones([self.n_stage, 3])
-        self.x_tm = x_tm * np.ones([self.n_stage, 3])
-        self.eta_guess = 1.0*np.ones([self.n_stage, 1])
+    # def Variables(self, R, phi, psi, r_m, chords, rowGap, Twist, QO_LE, QO_TE, tc_m, x_tm):
+    #     self.R = R * np.ones([self.n_stage, 1])
+    #     self.phi = phi * np.ones([self.n_stage, 1])
+    #     self.psi = psi * np.ones([self.n_stage, 1])
+    #     self.r_m = r_m * np.ones([self.n_stage, 1])
+    #     self.chords = chords * np.ones([self.n_stage, 2])
+    #     self.rowGap = rowGap * np.ones([self.n_stage, 1])
+    #     self.Twist = Twist*np.ones([self.n_stage, 1])
+    #     self.QO_LE = QO_LE*np.ones([self.n_stage, 2])
+    #     self.QO_TE = QO_TE*np.ones([self.n_stage, 2])
+    #     self.tc_m = tc_m * np.ones([self.n_stage, 3])
+    #     self.x_tm = x_tm * np.ones([self.n_stage, 3])
+    #     self.eta_guess = 1.0*np.ones([self.n_stage, 1])
 
 
 
     def machineDefinition(self):
-
+        # This function defines some fundamental design aspects about the machine. The code is intended for axial
+        # compressor or turbine analysis. In the future, the designPoint option could be a user input as well, as
+        # the meshing and geometry generation processes are compatible with hub, mean and tip design.
         self.flowPath = 'AXI'
         self.designPoint = 'M'
+
+        # Flow angle calculation is done through specification of duty coefficients directly.
         self.inType = 'A'
+
+        # Design radius is specified by the user.
         self.radType = 'A'
 
 
     def ParabladeWriter(self):
+        # This function writes the Parablade input file according to Meangen output.
+
+        # Obtaining total blade row count.
         n_rows = len(self.theta_in[0, :])
+
+        # Depending on the dimension, different sections will be defined for Parablade.
         if self.Dimension == 2:
+            # In case of a 2D analysis, only the middle section of the blade row will be defined.
             n_start = 1
             n_end = 2
             n_sec = 1
             CASCADE_TYPE = "LINEAR"
+
+            # Blade section count in spanwise direction.
             sec_count = 30
+            # Blade section point count in axial direction.
             point_count = 30
         else:
+            # In case of 3D analysis, all three sections output by Meangen are used as input for Parablade.
             n_start = 0
             n_end = 3
             n_sec = 3
@@ -222,19 +257,20 @@ class Meangen2Parablade:
             sec_count = 30
             point_count = 30
 
+        # Getting template directory.
         HOME = os.environ["M2BFM"]
-
         template_dir = HOME + "templates/"
 
-        N_b = np.zeros(n_rows)
-        D1 = np.zeros(n_rows)
-        D2 = np.zeros(n_rows)
-        R_LE = np.zeros(n_rows)
-        R_TE = np.zeros(n_rows)
-        T = np.zeros([6, n_rows])
+        # Setting up empty arrays for Parablade input parameters.
+        N_b = np.zeros(n_rows)      # Blade row blade count.
+        D1 = np.zeros(n_rows)       # Inlet distance.
+        D2 = np.zeros(n_rows)       # Outlet distance.
+        R_LE = np.zeros(n_rows)     # Leading edge radius.
+        R_TE = np.zeros(n_rows)     # Trailing edge radius.
+        T = np.zeros([6, n_rows])   # Blade Bezier curve points.
 
         if self.machineType == 'C':
-
+            # In case of a compressor, rotor parameters are followed by stator parameters.
             for i in range(self.n_stage):
                 N_b[2*i] += self.N_b_R[i]
                 N_b[2*i + 1] += self.N_b_S[i]
@@ -250,6 +286,7 @@ class Meangen2Parablade:
                 T[:, 2 * i + 1] += self.T_S[i, :]
             self.N_b = N_b
         else:
+            # In case of a turbine, stator parameters are followed by rotor parameters.
             for i in range(self.n_stage):
                 N_b[2 * i] += self.N_b_S[i]
                 N_b[2 * i + 1] += self.N_b_R[i]
@@ -264,17 +301,24 @@ class Meangen2Parablade:
                 T[:, 2 * i] += self.T_S[i, :]
                 T[:, 2 * i + 1] += self.T_R[i, :]
             self.N_b = N_b
+
+        # Looping over all blade rows to write a Parablade configuration file for each respective row.
         for i in range(n_rows):
+            # Copying template configuration file from template directory.
             os.system("cp " + template_dir + "/template_turbine.cfg ./Bladerow_" + str(i+1) + ".cfg")
 
-            os.system("sed -i 's/CAS_type/"+CASCADE_TYPE+"/g' Bladerow_"+str(i+1)+ ".cfg")
+            # Replacing template names in template file by design values or types.
+            os.system("sed -i 's/CAS_type/"+CASCADE_TYPE+"/g' Bladerow_"+str(i+1) + ".cfg")
             os.system("sed -i 's/N_sec/" + str(sec_count) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/N_point/" + str(point_count) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             os.system("sed -i 's/N_dim/"+str(int(self.Dimension))+"/g' Bladerow_"+str(i+1) + ".cfg")
+            os.system("sed -i 's/N_blade/" + str(int(self.N_b[i])) + "/g' Bladerow_"+str(i+1) + ".cfg")
 
-            os.system("sed -i 's/N_blade/" + str(int(self.N_b[i])) + "/g' Bladerow_"+str(i+1)+ ".cfg")
+            # Calculating tangent of stagger angle, which is taken to be the average of the tangent of the inlet and
+            # outlet metal angles.
             tan_stagger = np.transpose(np.array(0.5 * (np.tan(self.theta_in[n_start:n_end, i]*np.pi/180.0) +
                                                        np.tan(self.theta_out[n_start:n_end, i]*np.pi/180.0))))
+            # Calculating and storing stagger angles of the blade rows.
             stagger = []
             for m in range(len(tan_stagger)):
                 stagger.append(math.atan(tan_stagger[m])*180.0/np.pi)
