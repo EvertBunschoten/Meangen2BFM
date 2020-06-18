@@ -213,14 +213,14 @@ class Gmesh3D:
         n_rows = len(X_LE[0, :])
 
         # Creating a list of chord lengths which will be used for local cell size calculation.
-        chords = []
+        chords = np.zeros(2 * self.M.n_stage)
         for i in range(self.M.n_stage):
             if self.M.machineType == 'C':
-                chords.append(self.M.chord_R[i])
-                chords.append(self.M.chord_S[i])
+                chords[2 * i] += self.M.chord_R[i]
+                chords[2 * i + 1] += self.M.chord_S[i]
             else:
-                chords.append(self.M.chord_S[i])
-                chords.append(self.M.chord_R[i])
+                chords[2 * i] += self.M.chord_S[i]
+                chords[2 * i + 1] += self.M.chord_R[i]
 
         # Defining lists for x, y and z coordinates of the points, the cell size for each point and point tags.
         X_p = []
@@ -233,7 +233,7 @@ class Gmesh3D:
         # blade row leading edge.
         i_point = 1
         # Calculating x-coordinate.
-        X_inlet = min(X_LE[0, 0] - 2 * chords[0], X_LE[-1, 0] - 2 * chords[0])
+        X_inlet = min(X_LE[:, 0] - 2 * chords[0])
         X_p.append(X_inlet)
         # Calculating y-coordinate.
         Y_p.append(R_LE[0, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
@@ -241,6 +241,7 @@ class Gmesh3D:
         Z_p.append(R_LE[0, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
         points.append(i_point)
         # Inlet cell size is defined as the first blade row cell size multiplied by the inlet cell size factor.
+        # L_c.append(self.inlet_fac * chords[0] / self.n_point)
         L_c.append(self.inlet_fac * chords[0] / self.n_point)
         i_point += 1
 
@@ -249,6 +250,7 @@ class Gmesh3D:
         Y_p.append(R_LE[-1, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
         Z_p.append(R_LE[-1, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
         points.append(i_point)
+        # L_c.append(self.inlet_fac * chords[0] / self.n_point)
         L_c.append(self.inlet_fac * chords[0] / self.n_point)
         i_point += 1
 
@@ -259,7 +261,7 @@ class Gmesh3D:
             Y_p.append(R_LE[0, j] * np.sin(0.5 * self.wedge * np.pi/180))
             Z_p.append(R_LE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
             points.append(i_point)
-            L_c.append((X_TE[0, j] - X_LE[0, j]) / self.n_point)
+            L_c.append(chords[j] / self.n_point)
             i_point += 1
 
             # Defining point at the leading edge of the blade row at the shroud.
@@ -267,7 +269,7 @@ class Gmesh3D:
             Y_p.append(R_LE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
             Z_p.append(R_LE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
             points.append(i_point)
-            L_c.append((X_TE[-1, j] - X_LE[-1, j]) / self.n_point)
+            L_c.append(chords[j] / self.n_point)
             i_point += 1
 
             # Defining point at the trailing edge of the blade row at the hub.
@@ -275,7 +277,7 @@ class Gmesh3D:
             Y_p.append(R_TE[0, j] * np.sin(0.5 * self.wedge * np.pi / 180))
             Z_p.append(R_TE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
             points.append(i_point)
-            L_c.append((X_TE[0, j] - X_LE[0, j]) / self.n_point)
+            L_c.append(chords[j] / self.n_point)
             i_point += 1
 
             # Defining point at the trailing edge of the blade row at the shroud.
@@ -283,15 +285,16 @@ class Gmesh3D:
             Y_p.append(R_TE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
             Z_p.append(R_TE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
             points.append(i_point)
-            L_c.append((X_TE[-1, j] - X_LE[-1, j]) / self.n_point)
+            L_c.append(chords[j] / self.n_point)
             i_point += 1
 
         # The outlet is located 2 axial chords of the last blade row downstream of its trailing edge.
-        X_outlet = max(X_p[-2] + 2 * chords[-1], X_p[-2] + 2 * chords[-1])
+        X_outlet = max(X_TE[:, -1] + 2 * chords[-1])
         X_p.append(X_outlet)
         Y_p.append(Y_p[-2])
         Z_p.append(Z_p[-2])
         points.append(i_point)
+        # L_c.append(self.outlet_fac * chords[-1] / self.n_point)
         L_c.append(self.outlet_fac * chords[-1] / self.n_point)
         i_point += 1
         X_p.append(X_outlet)

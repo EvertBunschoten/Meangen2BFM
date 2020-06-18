@@ -50,6 +50,7 @@ class Meangen2Parablade:
         self.r_m = IN["r_m"]                    # Mean stage radius for each respective stage
         self.chord_R = IN["chord_R"]            # Rotor chords
         self.chord_S = IN["chord_S"]            # Stator chords
+        self.tip_gap = IN["ROTOR_TIP_GAP"]      # Rotor tip gaps
         self.rowGap = IN["rowGap"]              # Row gap, normalized wrt first bladerow chord
         self.stageGap = IN["stageGap"]          # Stage gap, normalized wrt first bladerow chord
         self.Twist = IN["twist"]                # Meangen twist value
@@ -200,20 +201,6 @@ class Meangen2Parablade:
             self.f.write("Y\nY\n")
         self.f.close()
 
-    # def Variables(self, R, phi, psi, r_m, chords, rowGap, Twist, QO_LE, QO_TE, tc_m, x_tm):
-    #     self.R = R * np.ones([self.n_stage, 1])
-    #     self.phi = phi * np.ones([self.n_stage, 1])
-    #     self.psi = psi * np.ones([self.n_stage, 1])
-    #     self.r_m = r_m * np.ones([self.n_stage, 1])
-    #     self.chords = chords * np.ones([self.n_stage, 2])
-    #     self.rowGap = rowGap * np.ones([self.n_stage, 1])
-    #     self.Twist = Twist*np.ones([self.n_stage, 1])
-    #     self.QO_LE = QO_LE*np.ones([self.n_stage, 2])
-    #     self.QO_TE = QO_TE*np.ones([self.n_stage, 2])
-    #     self.tc_m = tc_m * np.ones([self.n_stage, 3])
-    #     self.x_tm = x_tm * np.ones([self.n_stage, 3])
-    #     self.eta_guess = 1.0*np.ones([self.n_stage, 1])
-
 
 
     def machineDefinition(self):
@@ -268,6 +255,7 @@ class Meangen2Parablade:
         R_LE = np.zeros(n_rows)     # Leading edge radius.
         R_TE = np.zeros(n_rows)     # Trailing edge radius.
         T = np.zeros([6, n_rows])   # Blade Bezier curve points.
+        tip_gap = np.zeros(n_rows)
 
         if self.machineType == 'C':
             # In case of a compressor, rotor parameters are followed by stator parameters.
@@ -284,6 +272,8 @@ class Meangen2Parablade:
                 R_TE[2 * i + 1] += self.t_TE_S[i]
                 T[:, 2 * i] += self.T_R[i, :]
                 T[:, 2 * i + 1] += self.T_S[i, :]
+                tip_gap[2 * i] += self.tip_gap[i]
+                tip_gap[2 * i + 1] += -0.01
             self.N_b = N_b
         else:
             # In case of a turbine, stator parameters are followed by rotor parameters.
@@ -300,6 +290,8 @@ class Meangen2Parablade:
                 R_TE[2 * i + 1] += self.t_TE_R[i]
                 T[:, 2 * i] += self.T_S[i, :]
                 T[:, 2 * i + 1] += self.T_R[i, :]
+                tip_gap[2 * i] += -0.01
+                tip_gap[2 * i + 1] += self.tip_gap[i]
             self.N_b = N_b
 
         # Looping over all blade rows to write a Parablade configuration file for each respective row.
@@ -324,35 +316,74 @@ class Meangen2Parablade:
                 stagger.append(math.atan(tan_stagger[m])*180.0/np.pi)
             os.system("sed -i 's/STAGGER/"+", ".join([str(s) for s in stagger])+"/g' Bladerow_"+str(i+1)+".cfg")
 
+
+            X_le = np.transpose(self.X_LE[n_start:n_end, i])
+            os.system("sed -i 's/X_LE/" + ", ".join([str(s) for s in X_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            Z_le = np.transpose(self.Z_LE[:, i])
+            Z_te = np.transpose(self.Z_TE[:, i])
+
+            
+            z_le = []
+            z_te = []
+            for j in range(len(Z_le)):
+                z_le.append(Z_le[0] + (1 - tip_gap[i]) * (Z_le[j] - Z_le[0]))
+                z_te.append(Z_te[0] + (1 - tip_gap[i]) * (Z_te[j] - Z_te[0]))
+            z_le[0] -= 0.01 * (Z_le[-1] - Z_le[0])
+            z_te[0] -= 0.01 * (Z_le[-1] - Z_le[0])
+            # z_le[-1] -= tip_gap[i] * (Z_le[-1] - Z_le[0])
+            # z_te[-1] -= tip_gap[i] * (Z_le[-1] - Z_le[0])
+
+            os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+
+            # X_hub = [0.75*self.X_LE[0, i] + 0.25*self.X_TE[0, i], 0.75*self.X_TE[0, i] + 0.25*self.X_LE[0, i]]
+            # os.system("sed -i 's/X_HUB/" + ", ".join([str(s) for s in X_hub]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            # Z_hub = [0.75*self.Z_LE[0, i] + 0.25*self.Z_TE[0, i], 0.75*self.Z_TE[0, i] + 0.25*self.Z_LE[0, i]]
+            # os.system("sed -i 's/Z_HUB/" + ", ".join([str(s) for s in Z_hub]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            # X_shroud = [0.75 * self.X_LE[-1, i] + 0.25 * self.X_TE[-1, i], 0.75 * self.X_TE[-1, i] + 0.25 *
+            #             self.X_LE[-1, i]]
+            # os.system("sed -i 's/X_SHROUD/" + ", ".join([str(s) for s in X_shroud]) +
+            #           "/g' Bladerow_" + str(i + 1) + ".cfg")
+            # Z_shroud = [0.75 * self.Z_LE[-1, i] + 0.25 * self.Z_TE[-1, i], 0.75 * self.Z_TE[-1, i] + 0.25 *
+            #             self.Z_LE[-1, i]]
+            # os.system("sed -i 's/Z_SHROUD/" + ", ".join([str(s) for s in Z_shroud]) +
+            #           "/g' Bladerow_" + str(i + 1) + ".cfg")
             X_hub = [0.75*self.X_LE[0, i] + 0.25*self.X_TE[0, i], 0.75*self.X_TE[0, i] + 0.25*self.X_LE[0, i]]
             os.system("sed -i 's/X_HUB/" + ", ".join([str(s) for s in X_hub]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            Z_hub = [0.75*self.Z_LE[0, i] + 0.25*self.Z_TE[0, i], 0.75*self.Z_TE[0, i] + 0.25*self.Z_LE[0, i]]
+            Z_hub = [0.75*z_le[0] + 0.25*z_te[0], 0.75*z_te[0] + 0.25*z_le[0]]
             os.system("sed -i 's/Z_HUB/" + ", ".join([str(s) for s in Z_hub]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             X_shroud = [0.75 * self.X_LE[-1, i] + 0.25 * self.X_TE[-1, i], 0.75 * self.X_TE[-1, i] + 0.25 *
                         self.X_LE[-1, i]]
             os.system("sed -i 's/X_SHROUD/" + ", ".join([str(s) for s in X_shroud]) +
                       "/g' Bladerow_" + str(i + 1) + ".cfg")
-            Z_shroud = [0.75 * self.Z_LE[-1, i] + 0.25 * self.Z_TE[-1, i], 0.75 * self.Z_TE[-1, i] + 0.25 *
-                        self.Z_LE[-1, i]]
+            Z_shroud = [0.75*z_le[-1] + 0.25*z_te[-1], 0.75*z_te[-1] + 0.25*z_le[-1]]
             os.system("sed -i 's/Z_SHROUD/" + ", ".join([str(s) for s in Z_shroud]) +
                       "/g' Bladerow_" + str(i + 1) + ".cfg")
-            X_le = np.transpose(self.X_LE[n_start:n_end, i])
-            os.system("sed -i 's/X_LE/" + ", ".join([str(s) for s in X_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            Z_le = np.transpose(self.Z_LE[:, i])
-            Z_te = np.transpose(self.Z_TE[:, i])
-            if (i+1) % 2 == 0:
-                os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in Z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-                os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in Z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-            else:
-                z_le = []
-                z_te = []
-                for j in range(len(Z_le)):
-                    z_le.append(Z_le[0] + 0.99 * (Z_le[j] - Z_le[0]))
-                    z_te.append(Z_te[0] + 0.99 * (Z_te[j] - Z_te[0]))
-                z_le[0] *= 0.99
-                z_te[0] *= 0.99
-                os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
-                os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            # if (i+1) % 2 == 0:
+            #     z_le = []
+            #     z_te = []
+            #     for j in range(len(Z_le)):
+            #         z_le.append(Z_le[j])
+            #         z_te.append(Z_te[j])
+            #
+            #     z_le[0] -= 0.01 * (Z_le[-1] - Z_le[0])
+            #     z_te[0] -= 0.01 * (Z_le[-1] - Z_le[0])
+            #     z_le[-1] += 0.01 * (Z_le[-1] - Z_le[0])
+            #     z_te[-1] += 0.01 * (Z_le[-1] - Z_le[0])
+            #     print(z_le)
+            #     print(z_te)
+            #     os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in Z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            #     os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in Z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            # else:
+            #     z_le = []
+            #     z_te = []
+            #     for j in range(len(Z_le)):
+            #         z_le.append(Z_le[0] + tip_height[i] * (Z_le[j] - Z_le[0]))
+            #         z_te.append(Z_te[0] + tip_height[i] * (Z_te[j] - Z_te[0]))
+            #     z_le[0] *= 0.99
+            #     z_te[0] *= 0.99
+            #     os.system("sed -i 's/Z_LE/" + ", ".join([str(s) for s in Z_le]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
+            #     os.system("sed -i 's/Z_TE/" + ", ".join([str(s) for s in Z_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
             X_te = np.transpose(self.X_TE[n_start:n_end, i])
             os.system("sed -i 's/X_TE/" + ", ".join([str(s) for s in X_te]) + "/g' Bladerow_" + str(i + 1) + ".cfg")
 

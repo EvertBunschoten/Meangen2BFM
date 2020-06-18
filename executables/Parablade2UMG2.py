@@ -22,6 +22,8 @@ class WriteUMG:
 
         thisDir = os.getcwd()       # Getting current directory.
 
+        self.wedge = IN["WEDGE"][0]
+
         # Getting the number of axial points for the blade passage, boundary layer count and boundary layer thickness.
         np = IN["AXIAL_POINTS"][0]
         self.n_bl = int(IN["BOUNDARY_LAYER_COUNT"][0])
@@ -60,7 +62,7 @@ class WriteUMG:
         self.radCrv_blade = 5
 
         # Calculating the outflow cell sizes. These are the passage cell sizes multiplied by the specified outlet factor
-        if self.rowNumber == 2 * self.Meangen.n_stage:
+        if self.rowNumber == 2:
             self.h_max_outflow = IN["OUTLET_FACTOR"][0] * chord/np
             self.h_min_outflow = self.h_max_outflow / IN["OUTLET_FACTOR"][0]
         else:
@@ -94,10 +96,6 @@ class WriteUMG:
         x_le = self.Meangen.X_LE
         x_te = self.Meangen.X_TE
 
-        # Getting the blade surface coordinates from Parablade output.
-        coordDir = os.getcwd() + "/output/coordinates/surface_coordinates.csv"
-        p, x, y, u, v = np.loadtxt(coordDir, unpack=True, delimiter=',\t', skiprows=1)
-
         # Calculating the blade pitch according to the machine type.
         if self.Meangen.machineType == 'C':
             if self.rowNumber % 2 != 0:
@@ -109,16 +107,15 @@ class WriteUMG:
                 pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1])/self.Meangen.N_b_S[self.stage - 1]
             else:
                 pitch = (2 * np.pi * self.Meangen.r_m[self.stage - 1]) / self.Meangen.N_b_R[self.stage - 1]
-
         self.Pitch = pitch
 
         # Setting relevant x coordinates for the mesh geometry.
-        x1 = min(x)
+        x1 = x_le[1, 2 * (self.stage - 1) + self.rowNumber - 1]
 
         x2 = x1
         y2 = pitch * self.n_blade
 
-        x3 = max(x)
+        x3 = x_te[1, 2 * (self.stage - 1) + self.rowNumber - 1]
 
         x4 = x3
 
@@ -127,11 +124,11 @@ class WriteUMG:
             x_fwd = x1 - (x3 - x1)
             x_bck = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
         elif self.stage == self.Meangen.n_stage and self.rowNumber == 2:
-            x_fwd = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
+            x_fwd = 0.5 * (x_le[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_TE[1, 2 * (self.stage - 1) + self.rowNumber - 2])
             x_bck = x3 + (x3 - x1)
         else:
-            x_fwd = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
-            x_bck = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
+            x_fwd = 0.5 * (x_le[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_TE[1, 2 * (self.stage - 1) + self.rowNumber - 2])
+            x_bck = 0.5 * (x_te[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_LE[1, 2 * (self.stage - 1) + self.rowNumber])
 
         # Collecting all x-coordinates of the mesh corners.
         self.X_curve = [[x_fwd, x1], [x1, x1], [x1, x_fwd], [x_fwd, x_fwd],
@@ -222,13 +219,13 @@ class WriteUMG:
         # blade passage mesh.
         if self.stage == 1 and self.rowNumber == 1:
             x_2 = x_0 - 2*(x_1 - x_0)
-            x_6 = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
+            x_6 = 0.5 * (x_te[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_LE[1, 2 * (self.stage - 1) + self.rowNumber])
         elif self.stage == self.Meangen.n_stage and self.rowNumber == 2:
-            x_2 = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
+            x_2 = 0.5 * (x_le[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_TE[1, 2 * (self.stage - 1) + self.rowNumber - 2])
             x_6 = x_1 + 2*(x_1 - x_0)
         else:
-            x_2 = 0.5 * (x_le[1, self.rowNumber - 1] + self.Meangen.X_TE[1, self.rowNumber - 2])
-            x_6 = 0.5 * (x_te[1, self.rowNumber - 1] + self.Meangen.X_LE[1, self.rowNumber])
+            x_2 = 0.5 * (x_le[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_TE[1, 2 * (self.stage - 1) + self.rowNumber - 2])
+            x_6 = 0.5 * (x_te[1, 2 * (self.stage - 1) + self.rowNumber - 1] + self.Meangen.X_LE[1, 2 * (self.stage - 1) + self.rowNumber])
 
         # Setting up the coordinates for the mesh corners.
         y_2 = y_0 - 0.5 * pitch
@@ -253,10 +250,12 @@ class WriteUMG:
         y_9 = y_0 - 0.5 * pitch
 
         # Specifing boundary names.
+
         self.names = ["BLADE", "BLADE", "INFLOW", "PER_INF_DOWN", "PER_CHANNEL_DOWN", "PER_GAP_DOWN",
                       "PER_INF_UP", "PER_CHANNEL_UP", "PER_GAP_UP", "OUTFLOW"]
 
         # Specifying boundary types.
+
         self.types = [8, 8, 1, 4, 4, 4, 5, 5, 5, 3]
 
         # Specifying boundary order.
