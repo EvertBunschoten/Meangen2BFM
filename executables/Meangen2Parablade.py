@@ -74,6 +74,7 @@ class Meangen2Parablade:
         self.D_1_S = IN["d_1_S"]                # Stator leading edge distance
         self.D_2_S = IN["d_2_S"]                # Stator trailing edge distance
 
+        self.Np_mesh = int(IN["AXIAL_POINTS"][0])
         # Setting up Bezier points for the rotor and stator surface curves.
         self.T_R = np.zeros([self.n_stage, 6])
         self.T_S = np.zeros([self.n_stage, 6])
@@ -101,18 +102,18 @@ class Meangen2Parablade:
         print("Meangen took "+str(time.time() - start_time) + " seconds")
 
         # Reading stagen.dat file for blade row geometry
-        S = StagenReader()
+        self.S = StagenReader()
 
         # Storing blade row inlet metal angles
-        self.theta_in = S.theta_in
+        self.theta_in = self.S.theta_in
         # Storing blade row outlet metal angles
-        self.theta_out = S.theta_out
+        self.theta_out = self.S.theta_out
 
         # Storing leading edge and trailing edge coordinates
-        self.X_LE = S.X_LE
-        self.X_TE = S.X_TE
-        self.Z_LE = S.Z_LE
-        self.Z_TE = S.Z_TE
+        self.X_LE = self.S.X_LE
+        self.X_TE = self.S.X_TE
+        self.Z_LE = self.S.Z_LE
+        self.Z_TE = self.S.Z_TE
 
         # Writing Parablade input file
         print("Writing Parablade input file...", end='          ')
@@ -123,6 +124,27 @@ class Meangen2Parablade:
 
         # Storing Meangen output files
         self.storeFiles()
+
+    def PartialGradient(self):
+        n_sec = len(self.theta_in[:, 0])
+        n_row = len(self.theta_in[0, :])
+
+        step = 1e-3
+        Theta_in = self.theta_in
+        Theta_out = self.theta_out
+
+
+        for i in range(n_row):
+            dN_dTheta = np.zeros((self.Np_mesh ** 2, n_sec * 3 * 2))
+            for j in range(n_sec):
+                Theta_in[i, j] += step
+                self.theta_in = Theta_in
+                self.ParabladeWriter()
+                os.system("MakeBlade.py B")
+
+
+        self.theta_in = self.S.theta_in
+        self.theta_out = self.S.theta_out
 
     def storeFiles(self):
         # This function stores all Meangen output files into a separate folder to maintain a relatively organized
@@ -232,17 +254,17 @@ class Meangen2Parablade:
             CASCADE_TYPE = "LINEAR"
 
             # Blade section count in spanwise direction.
-            sec_count = 30
+            sec_count = self.Np_mesh
             # Blade section point count in axial direction.
-            point_count = 30
+            point_count = self.Np_mesh
         else:
             # In case of 3D analysis, all three sections output by Meangen are used as input for Parablade.
             n_start = 0
             n_end = 3
             n_sec = 3
             CASCADE_TYPE = "ANNULAR"
-            sec_count = 30
-            point_count = 30
+            sec_count = self.Np_mesh
+            point_count = self.Np_mesh
 
         # Getting template directory.
         HOME = os.environ["M2BFM"]

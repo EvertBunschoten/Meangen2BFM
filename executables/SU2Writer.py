@@ -93,30 +93,22 @@ def ReadUserInput(name):
 # Meangen output and write the SU2 configuration file for BFM or blade analysis.
 class writeSU2input:
     fileName = "meandesign.out"
-    def __init__(self):
-        for line in open("MeangenOutput/"+self.fileName, "r"):
-            print(line.split("    "))
+    def __init__(self, IN):
+        HOME = os.environ["M2BFM"]
+        self.IN = IN
+        template_dir = HOME + "templates/"
+        os.system("cp "+template_dir+"BFM_comp.template ./BFM_comp.cfg")
+        self.ReplaceTerms()
 
-    def ReadMeangenOutput(self, name):
-        IN = {}
-        infile = open(name, 'r')
-        for line in infile:
-          words = re.split(' |\n|,|[|]', line)
-          if not any(words[0] in s for s in ['\n', '%', ' ', '#']):
-            words = list(filter(None, words))
-            for i in range(0, len(words)):
-                try:
-                    words[i] = float(words[i])
-                except:
-                    words[i] = words[i]
-            if len(words[1::1]) == 1 and isinstance(words[1], float):
-                IN[words[0]] = [words[1]]
-            elif len(words[1::1]) == 1 and isinstance(words[1], str):
-                IN[words[0]] = words[1]
-            else:
-                IN[words[0]] = words[1::1]
-        IN['Config_Path'] = name
-        return IN
-
-
-
+    def ReplaceTerms(self):
+        gamma = self.IN["gamma"][0]
+        R = self.IN["R_gas"][0]
+        os.system("sed -i 's/GAMMA_FLUID/" + str(gamma) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/R_FLUID/" + str(R) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/CP_FLUID/" + str(gamma * R / (gamma - 1)) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/OMEGA/" + str(self.IN["Omega"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/MEAN_RADIUS/" + str(self.IN["r_m"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/P_TOT_IN/" + str(self.IN["P_t_in"][0] * 1e5) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/T_TOT_IN/" + str(self.IN["T_t_in"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/P_STAT_OUT/" + str(self.IN["P_s_out"][0] * 1e5) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/WEDGE_ANGLE/" + str(self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")

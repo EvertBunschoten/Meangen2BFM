@@ -20,12 +20,13 @@ import time
 # Getting the executables directory
 HOME = os.environ["M2BFM"]
 sys.path.append(HOME + "executables/")
-
 # Importing all relevant executables from the installation directory
 from Meangen2Parablade import Meangen2Parablade
 from Parablade2UMG2 import WriteUMG, writeStageMesh_BFM, writeStageMesh_Blade
 from SU2Writer import writeBFMinput, ReadUserInput, writeSU2input
 from Mesh3D import Gmesh3D
+from PartialGradient import dN_dalpha
+from Tools import RaycastInterpolation
 
 # Reading input file
 DIR = os.getcwd() + '/'
@@ -41,6 +42,10 @@ except:
                     '\n\tMakeBlade.py <configuration file name>')
 t_start = time.time()
 
+if IN["ADJOINT"] == 'YES':
+    print(IN["DESIGN_VARIABLES"])
+    dN_dalpha(IN)
+    #s = RaycastInterpolation("./PartialGradients/phi", [0.02, 0.03], [0.7, 0.7])
 # Executing Meangen and writing Parablade input files.
 M = Meangen2Parablade(IN)
 
@@ -130,4 +135,5 @@ if Blade:
         writeStageMesh_Blade(M)
         print("Done!")
 print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
-# writeSU2input()
+writeSU2input(IN)
+
