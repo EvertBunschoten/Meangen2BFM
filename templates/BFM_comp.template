@@ -184,7 +184,7 @@ MARKER_PERIODIC= ( periodic_1, periodic_2, 0.0, 0.0, 0.0, WEDGE_ANGLE, 0.0, 0.0,
 NUM_METHOD_GRAD= GREEN_GAUSS
 %
 % CFL number (initial value for the adaptive CFL number)
-CFL_NUMBER= 6.0
+CFL_NUMBER= 8.0
 %
 % Adaptive CFL number (NO, YES)
 CFL_ADAPT= NO

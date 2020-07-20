@@ -24,7 +24,7 @@ sys.path.append(HOME + "executables/")
 from Meangen2Parablade import Meangen2Parablade
 from Parablade2UMG2 import WriteUMG, writeStageMesh_BFM, writeStageMesh_Blade
 from SU2Writer import writeBFMinput, ReadUserInput, writeSU2input
-from Mesh3D import Gmesh3D
+from Mesh3D import Gmesh3D, FullAnnulus
 from PartialGradient import dN_dalpha
 from Tools import RaycastInterpolation
 
@@ -118,7 +118,8 @@ if BFM:
     # Writing 3D BFM mesh or combining individual 2D blade row meshes depending on case dimension.
     if IN['N_dim'][0] == 3:
         print("Writing 3D BFM mesh:...")
-        Gmesh3D(M, IN)
+        #Gmesh3D(M, IN)
+        FullAnnulus(M, IN)
         print("Done!")
     else:
         print("Writing Body-force SU2 machine mesh file...", end='     ')
@@ -137,3 +138,11 @@ if Blade:
 print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
 writeSU2input(IN)
 
+# if IN["ADJOINT"] == 'YES':
+#     print("Running SU2...")
+#     os.system("SU2_CFD BFM_comp.cfg")
+#     print("Done!")
+#     print("Computing objective gradients...")
+#     line = "pvpython < "+HOME+"executables/GradientPostProcessor.py"
+#     os.system(line)
+#     print("Done!")

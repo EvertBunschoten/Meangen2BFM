@@ -4,19 +4,24 @@ import sys
 # Getting the executables directory
 HOME = os.environ["M2BFM"]
 sys.path.append(HOME + "executables/")
-
+import matplotlib.pyplot as plt
 # Importing all relevant executables from the installation directory
 from Meangen2Parablade import Meangen2Parablade
+
+
 class dN_dalpha:
     def __init__(self, IN):
         self.Variables = IN["DESIGN_VARIABLES"]
 
-        self.step = 1e-3
+        self.step = 1e-4
+        self.IN_old = IN
         self.IN_new = IN
         self.n_rows = int(IN["N_stage"][0]) * 2
         self.Mesh_points = int(IN["AXIAL_POINTS"][0])
         os.system("mkdir ./PartialGradients")
         self.CentralDifferences()
+
+
     def CentralDifferences(self):
         if isinstance(self.Variables, str):
             L = 1
@@ -33,7 +38,9 @@ class dN_dalpha:
             for j in range(len(self.IN_new[var])):
 
                 for k in range(self.n_rows):
+                    print(self.IN_new[var][j])
                     self.IN_new[var][j] += self.step
+                    print(self.IN_new[var][j])
                     M = Meangen2Parablade(self.IN_new)
 
                     Normals = self.GetCamberNormals(k+1)
@@ -41,21 +48,24 @@ class dN_dalpha:
                     XR_plus = Normals[:, :2]
 
                     self.IN_new[var][j] -= 2 * self.step
+                    print(self.IN_new[var][j])
                     M = Meangen2Parablade(self.IN_new)
 
                     Normals = self.GetCamberNormals(k+1)
                     N_minus = Normals[:, 2:]
                     XR_minus = Normals[:, :2]
 
+                    self.IN_new[var][j] += self.step
                     if k == 0:
                         self.dN_dx = np.concatenate((0.5 * (XR_plus + XR_minus), (N_plus - N_minus)/(2 * self.step)), axis=1)
                     else:
                         self.dN_dx = np.append(self.dN_dx, np.concatenate((0.5 * (XR_plus + XR_minus), (N_plus - N_minus)/(2 * self.step)), axis=1), axis=0)
+                    self.IN_new = self.IN_old
 
                 varName = var
 
                 self.WriteDerivatives(dN_dx=self.dN_dx, varName=varName)
-                self.IN_new[var][j] += self.step
+
 
     def GetCamberNormals(self, rowNumber):
         os.system("MakeBlade.py Bladerow_"+str(rowNumber)+".cfg > thingy")

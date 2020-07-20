@@ -10,6 +10,183 @@ import gmsh
 import numpy as np
 import os
 
+
+class FullAnnulus:
+
+    def __init__(self, Meangen, IN):
+        self.M = Meangen
+        self.model = gmsh.model
+        self.factory = self.model.occ
+        self.n_rows = self.M.n_stage * 2
+
+        self.np = 3
+
+        gmsh.initialize()
+        gmsh.option.setNumber("General.Terminal", 1)
+        self.get_annulus_geom()
+        self.make_annulus()
+        self.divide_sections()
+        self.flowfield = self.factory.fragment([self.annulus[0]], self.shapes)
+        self.annulus = self.flowfield
+        self.factory.rotate(self.annulus[0], 0, 0, 0, 0, 1, 0, 0.5 * np.pi)
+        self.model.occ.synchronize()
+        inlet_number = self.model.getBoundary(self.annulus[0])[1]
+        inlet = self.model.addPhysicalGroup(2, inlet_number)
+        self.model.setPhysicalName(2, inlet, "inlet")
+
+        outlet_number = self.model.getBoundary(self.annulus[0])[10]
+        outlet = self.model.addPhysicalGroup(2, outlet_number)
+        self.model.setPhysicalName(2, outlet, "outlet")
+
+        hub_list = self.model.getBoundary(self.annulus[0])[3:13:2]
+        hub = self.model.addPhysicalGroup(2, hub_list)
+        self.model.setPhysicalName(2, hub, "hub")
+
+        shroud_list = self.model.getBoundary(self.annulus[0])[0:10:2]
+        shroud = self.model.addPhysicalGroup(2, shroud_list)
+        self.model.setPhysicalName(2, shroud, "shroud")
+
+        self.model.addPhysicalGroup(3, [1], 1)
+        self.model.setPhysicalName(3, 1, "Flowfield")
+
+        self.model.setColor(inlet_number, 255, 0, 0)
+        self.model.setColor(outlet_number, 0, 0, 255)
+        self.model.setColor(hub_list, 0, 255, 0)
+        self.model.setColor(shroud_list, 127, 0, 127)
+
+        self.model.mesh.setSize(self.model.getEntities(0), 0.03)
+        self.model.mesh.setSize(self.model.getBoundary(inlet_number), 0.03)
+        self.model.mesh.setSize(self.model.getBoundary(outlet_number), 0.03)
+
+        #self.stack_sections()
+        #self.factory.synchronize()
+        #self.define_boundaries()
+        #self.refine_mesh()
+
+        self.model.mesh.generate(3)
+        gmsh.write("fullannulus.su2")
+        gmsh.fltk.run()
+        gmsh.finalize()
+
+    def refine_mesh(self):
+        self.model.mesh.setSize(self.model.getEntities(0), 0.05)
+        for i in range(self.n_rows):
+            j = 2*i + 1
+            self.model.mesh.setSize(self.model.getBoundary(self.shapes[j], False, False, True), self.refinements[j])
+
+    def define_boundaries(self):
+        annulusGroup = self.model.addPhysicalGroup(3, self.flowfield[0])
+        self.model.setPhysicalName(3, annulusGroup, "Flowfield")
+
+        inlet = self.model.addPhysicalGroup(2, [self.model.getBoundary(self.shapes[0])[1]])
+        self.model.setPhysicalName(2, inlet, "inlet")
+
+        outlet = self.model.addPhysicalGroup(2, [self.model.getBoundary(self.shapes[-1])[2]])
+        self.model.setPhysicalName(2, outlet, "outlet")
+
+        shroud_surfaces = []
+        hub_surfaces = []
+        shroud_surfaces.append(self.model.getBoundary(self.shapes[0])[0])
+        hub_surfaces.append(self.model.getBoundary(self.shapes[0])[3])
+        for i in range(1, len(self.X_hub)-1):
+            print(self.shapes[i])
+            section = self.model.getBoundary(self.shapes[i])
+            print(section)
+            shroud_surfaces.append(section[1])
+            hub_surfaces.append(section[3])
+        hub = self.model.addPhysicalGroup(2, hub_surfaces)
+        self.model.setPhysicalName(2, hub, "hub")
+        shroud = self.model.addPhysicalGroup(2, shroud_surfaces)
+        self.model.setPhysicalName(2, shroud, "shroud")
+
+    def stack_sections(self):
+        self.flowfield = self.factory.fragment([self.annulus[0]], self.shapes)
+        self.factory.rotate(self.flowfield[0], 0, 0, 0, 0, 1, 0, 0.5*np.pi)
+
+
+    def divide_sections(self):
+        self.shapes = []
+        self.refinements = []
+        for j in range(1, len(self.X_hub)):
+            loops_hub = []
+            loops_shroud = []
+            for i in range(j - 1, j + 1):
+                circle_hub = self.model.occ.addCircle(0, 0, self.X_hub[i], self.R_hub[i])
+                loop_hub = self.model.occ.addCurveLoop([circle_hub])
+                loops_hub.append(loop_hub)
+
+                circle_shroud = self.model.occ.addCircle(0, 0, self.X_shroud[i], self.R_shroud[i])
+                loop_shroud = self.model.occ.addCurveLoop([circle_shroud])
+                loops_shroud.append(loop_shroud)
+            self.refinements.append((self.X_hub[j] - self.X_hub[j - 1]) / self.np)
+            outer_inlet = self.factory.addThruSections(loops_shroud, makeSolid=True, makeRuled=True)
+            hole_inlet = self.factory.addThruSections(loops_hub, makeSolid=True, makeRuled=True)
+            section = self.factory.cut(outer_inlet, hole_inlet)
+            print(section)
+
+            self.shapes.append(section[0])
+
+
+
+    def make_annulus(self):
+        loops_hub = []
+        loops_shroud = []
+        for i in range(len(self.X_shroud)):
+            circle_hub = self.model.occ.addCircle(0, 0, self.X_hub[i], self.R_hub[i])
+            loop_hub = self.model.occ.addCurveLoop([circle_hub])
+            loops_hub.append(loop_hub)
+
+            circle_shroud = self.model.occ.addCircle(0, 0, self.X_shroud[i], self.R_shroud[i])
+            loop_shroud = self.model.occ.addCurveLoop([circle_shroud])
+            loops_shroud.append(loop_shroud)
+
+        outer_annulus = self.factory.addThruSections(loops_shroud, makeSolid=True, makeRuled=True)
+        inner_annulus = self.factory.addThruSections(loops_hub, makeSolid=True, makeRuled=True)
+
+        self.annulus = self.factory.cut(outer_annulus, inner_annulus)
+
+
+    def get_annulus_geom(self):
+        X_LE = self.M.X_LE
+        R_LE = self.M.Z_LE
+        X_TE = self.M.X_TE
+        R_TE = self.M.Z_TE
+
+        # Calculating number of rows.
+        n_rows = len(X_LE[0, :])
+
+        # Creating a list of chord lengths which will be used for local cell size calculation.
+        chords = np.zeros(2 * self.M.n_stage)
+        for i in range(self.M.n_stage):
+            if self.M.machineType == 'C':
+                chords[2 * i] += self.M.chord_R[i]
+                chords[2 * i + 1] += self.M.chord_S[i]
+            else:
+                chords[2 * i] += self.M.chord_S[i]
+                chords[2 * i + 1] += self.M.chord_R[i]
+        self.Chords = chords
+        X_inlet = min(X_LE[:, 0]) - 2 * chords[0]
+        X_outlet = max(X_TE[:, -1]) + 2*chords[-1]
+
+        self.X_shroud = [X_inlet]
+        self.R_shroud = [R_LE[-1, 0]]
+        self.X_hub = [X_inlet]
+        self.R_hub = [R_LE[0, 0]]
+        for i in range(n_rows):
+            self.X_shroud.append(X_LE[-1, i])
+            self.X_shroud.append(X_TE[-1, i])
+            self.X_hub.append(X_LE[0, i])
+            self.X_hub.append(X_TE[0, i])
+
+            self.R_shroud.append(R_LE[-1, i])
+            self.R_hub.append(R_LE[0, i])
+            self.R_shroud.append(R_TE[-1, i])
+            self.R_hub.append(R_TE[0, i])
+        self.X_shroud.append(X_outlet)
+        self.X_hub.append(X_outlet)
+        self.R_shroud.append(R_TE[-1, -1])
+        self.R_hub.append(R_TE[0, -1])
+
 # Class capable of generating a 3D mesh suitable for BFM analysis in SU2.
 class Gmesh3D:
     wedge =         4    # 3D wedge angle in degrees. Should be lower than 180.
