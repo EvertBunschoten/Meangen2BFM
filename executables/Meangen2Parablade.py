@@ -294,8 +294,11 @@ class Meangen2Parablade:
                 R_TE[2 * i + 1] += self.t_TE_S[i]
                 T[:, 2 * i] += self.T_R[i, :]
                 T[:, 2 * i + 1] += self.T_S[i, :]
-                tip_gap[2 * i] += self.tip_gap[i]
-                tip_gap[2 * i + 1] += -0.01
+                if self.tip_gap[i] == 0.0:
+                    tip_gap[2 * i] -= 0.001
+                else:
+                    tip_gap[2 * i] += self.tip_gap[i]
+                tip_gap[2 * i + 1] += -0.001
             self.N_b = N_b
         else:
             # In case of a turbine, stator parameters are followed by rotor parameters.
@@ -312,8 +315,11 @@ class Meangen2Parablade:
                 R_TE[2 * i + 1] += self.t_TE_R[i]
                 T[:, 2 * i] += self.T_S[i, :]
                 T[:, 2 * i + 1] += self.T_R[i, :]
-                tip_gap[2 * i] += -0.01
-                tip_gap[2 * i + 1] += self.tip_gap[i]
+                tip_gap[2 * i] += -0.001
+                if self.tip_gap[i] == 0.0:
+                    tip_gap[2 * i + 1] -= 0.001
+                else:
+                    tip_gap[2 * i + 1] += self.tip_gap[i]
             self.N_b = N_b
 
         # Looping over all blade rows to write a Parablade configuration file for each respective row.

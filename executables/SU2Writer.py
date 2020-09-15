@@ -6,6 +6,7 @@
 
 import os
 import re
+import numpy as np
 
 # Class used for combining all individual blade row BFM input files into a single file for the entire machine.
 class writeBFMinput:
@@ -103,12 +104,22 @@ class writeSU2input:
     def ReplaceTerms(self):
         gamma = self.IN["gamma"][0]
         R = self.IN["R_gas"][0]
+        rot_axis = self.IN["Rotation_axis"]
+
         os.system("sed -i 's/GAMMA_FLUID/" + str(gamma) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/R_FLUID/" + str(R) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/CP_FLUID/" + str(gamma * R / (gamma - 1)) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/OMEGA/" + str(self.IN["Omega"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/ROT_X/" + str(rot_axis[0] * self.IN["Omega"][0]*np.pi/30) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/ROT_Y/" + str(rot_axis[1] * self.IN["Omega"][0]*np.pi/30) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/ROT_Z/" + str(rot_axis[2] * self.IN["Omega"][0]*np.pi/30) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/UIN_X/" + str(rot_axis[0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/UIN_Y/" + str(rot_axis[1]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/UIN_Z/" + str(rot_axis[2]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/MEAN_RADIUS/" + str(self.IN["r_m"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/P_TOT_IN/" + str(self.IN["P_t_in"][0] * 1e5) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/T_TOT_IN/" + str(self.IN["T_t_in"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/P_STAT_OUT/" + str(self.IN["P_s_out"][0] * 1e5) + "/g' BFM_comp.cfg")
-        os.system("sed -i 's/WEDGE_ANGLE/" + str(self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/WEDGE_X/" + str(rot_axis[0] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/WEDGE_Y/" + str(rot_axis[1] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
+        os.system("sed -i 's/WEDGE_Z/" + str(rot_axis[2] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")

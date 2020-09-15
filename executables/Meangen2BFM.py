@@ -24,9 +24,7 @@ sys.path.append(HOME + "executables/")
 from Meangen2Parablade import Meangen2Parablade
 from Parablade2UMG2 import WriteUMG, writeStageMesh_BFM, writeStageMesh_Blade
 from SU2Writer import writeBFMinput, ReadUserInput, writeSU2input
-from Mesh3D import Gmesh3D, FullAnnulus
-from PartialGradient import dN_dalpha
-from Tools import RaycastInterpolation
+from Mesh3D import Gmesh3D, FullAnnulus, Gmesh3D2
 
 # Reading input file
 DIR = os.getcwd() + '/'
@@ -42,10 +40,7 @@ except:
                     '\n\tMakeBlade.py <configuration file name>')
 t_start = time.time()
 
-if IN["ADJOINT"] == 'YES':
-    print(IN["DESIGN_VARIABLES"])
-    dN_dalpha(IN)
-    #s = RaycastInterpolation("./PartialGradients/phi", [0.02, 0.03], [0.7, 0.7])
+
 # Executing Meangen and writing Parablade input files.
 M = Meangen2Parablade(IN)
 
@@ -99,6 +94,11 @@ for i in range(n_stage):
         os.system("MakeBlade.py Bladerow.cfg > Parablade.out")
         print("Done!")
 
+        if IN["ADJOINT"] == 'YES':
+            os.system("sed -i 's/GEOMETRY/SENSITIVITY/g' Bladerow.cfg")
+            print("Getting sensitivities for blade row "+str(2*i + j))
+            os.system("MakeBlade.py Bladerow.cfg")
+            print("Done!")
         # In case the dimension number is 2, UMG2 input files will be written, depending on the mesh case option.
         if IN['N_dim'][0] == 2:
             WriteUMG(j, i+1, M, IN, bodyForce=BFM, blade=Blade)
@@ -118,8 +118,8 @@ if BFM:
     # Writing 3D BFM mesh or combining individual 2D blade row meshes depending on case dimension.
     if IN['N_dim'][0] == 3:
         print("Writing 3D BFM mesh:...")
-        #Gmesh3D(M, IN)
-        FullAnnulus(M, IN)
+        Gmesh3D(M, IN)
+        #FullAnnulus(M, IN)
         print("Done!")
     else:
         print("Writing Body-force SU2 machine mesh file...", end='     ')

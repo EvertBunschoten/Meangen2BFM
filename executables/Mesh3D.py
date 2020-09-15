@@ -25,9 +25,9 @@ class FullAnnulus:
         gmsh.option.setNumber("General.Terminal", 1)
         self.get_annulus_geom()
         self.make_annulus()
-        self.divide_sections()
-        self.flowfield = self.factory.fragment([self.annulus[0]], self.shapes)
-        self.annulus = self.flowfield
+        #self.divide_sections()
+        #self.flowfield = self.factory.fragment([self.annulus[0]], self.shapes)
+        #self.annulus = self.flowfield
         self.factory.rotate(self.annulus[0], 0, 0, 0, 0, 1, 0, 0.5 * np.pi)
         self.model.occ.synchronize()
         inlet_number = self.model.getBoundary(self.annulus[0])[1]
@@ -101,7 +101,7 @@ class FullAnnulus:
 
     def stack_sections(self):
         self.flowfield = self.factory.fragment([self.annulus[0]], self.shapes)
-        self.factory.rotate(self.flowfield[0], 0, 0, 0, 0, 1, 0, 0.5*np.pi)
+        #self.factory.rotate(self.flowfield[0], 0, 0, 0, 0, 1, 0, 0.5*np.pi)
 
 
     def divide_sections(self):
@@ -200,7 +200,7 @@ class Gmesh3D:
     yCoords =       None  # List of y-coordinates of the mesh points.
     zCoords =       None  # List of z-coordinates of the mesh points.
     lC =            None  # List of mesh cell sizes.
-
+    rot_axis =      [0, 0, 1]
     lineID =        None  # List of line identification numbers.
     lineStart =     None  # List of line start point identification numbers.
     lineEnd =       None  # List of line end point identification numbers.
@@ -217,6 +217,7 @@ class Gmesh3D:
         self.n_point = int(IN["AXIAL_POINTS"][0])
         self.inlet_fac = IN["INLET_FACTOR"][0]
         self.outlet_fac = IN["OUTLET_FACTOR"][0]
+        self.rot_axis = IN["Rotation_axis"]
 
         # Initiating Gmesh.
         self.model = gmsh.model
@@ -237,11 +238,14 @@ class Gmesh3D:
         # Revolving plane around rotation axis to create 3D wedge.
         self.revolve()
 
+
         # Setting names to boundaries.
         self.nameBoundaries()
 
         # Creating 3D mesh.
         gmsh.model.geo.synchronize()
+        self.refineLines()
+        #self.model.mesh.setTransfiniteCurve(self.lineID[7], 50, 'Progression', 1.0)
         gmsh.model.mesh.generate(3)
         gmsh.write(self.fileName)
 
@@ -260,15 +264,15 @@ class Gmesh3D:
         file = open("createPerio.cfg", "w+")
 
         # Writing periodic boundary command and specifying wedge angle.
-        file.write("MARKER_PERIODIC= (periodic_1, periodic_2, 0.0, 0.0, 0.0, " + str(
-            float(self.wedge)) + ", 0.0, 0.0, 0.0, 0.0, 0.0)\n")
+        file.write("MARKER_PERIODIC= (periodic_1, periodic_2, 0.0, 0.0, 0.0, 0.0, 0.0, " + str(
+            float(self.wedge)) + ", 0.0, 0.0, 0.0)\n")
         file.write("MESH_FILENAME= "+self.fileName+"\n")
         file.write("MESH_FORMAT= SU2\n")
         file.write("MESH_OUT_FILENAME= "+self.fileName[:-4]+"_perio.su2\n")
         file.close()
 
         # Executing SU2_PERIO to create periodic mesh and storing output in output file.
-        os.system("SU2_PERIO < createPerio.cfg > SU2_PERIO.out")
+        os.system("SU2_PERIO createPerio.cfg")
 
     def nameBoundaries(self):
         # This function gives names to all the boundaries of the 3D mesh so boundary conditions can be assigned in the
@@ -293,7 +297,7 @@ class Gmesh3D:
         inlet = self.model.addPhysicalGroup(2, [self.Rev[i][1]])
         self.model.setPhysicalName(2, inlet, "inlet")
         i += 1
-
+        self.model.setColor([self.Rev[2]], 255, 0, 0)
         # Appending all planes on the shroud side of the volume to a single shroud boundary.
         shroud_list = []
         for j in range(i, i + 3 * self.M.n_stage + 2):
@@ -305,6 +309,7 @@ class Gmesh3D:
         # Naming the outlet boundary
         outlet = self.model.addPhysicalGroup(2, [self.Rev[i][1]])
         self.model.setPhysicalName(2, outlet, "outlet")
+        self.model.setColor([self.Rev[i]], 255, 0, 0)
         i += 1
 
         # Appending all planes on the shroud side of the volume to a single shroud boundary.
@@ -314,72 +319,135 @@ class Gmesh3D:
             i += 1
         hub = self.model.addPhysicalGroup(2, hub_list)
         self.model.setPhysicalName(2, hub, "hub")
+    def refineLines(self):
+        self.model.mesh.setTransfiniteCurve(self.lines_hub[0], self.n_point)
+        self.model.mesh.setTransfiniteCurve(self.lines_shroud[0], self.n_point)
+        for i in range(1, len(self.lines_hub)-1):
+            if i % 2 == 0:
+                self.model.mesh.setTransfiniteCurve(self.lines_hub[i], max([int(self.n_point*self.length_hub[i]/self.length_hub[i-1]), 3]))
+                self.model.mesh.setTransfiniteCurve(self.lines_shroud[i], max([int(self.n_point*self.length_shroud[i]/self.length_shroud[i-1]), 3]))
+            else:
+                self.model.mesh.setTransfiniteCurve(self.lines_hub[i], self.n_point)
+                self.model.mesh.setTransfiniteCurve(self.lines_shroud[i], self.n_point)
+        self.model.mesh.setTransfiniteCurve(self.lines_hub[-1], self.n_point)
+        self.model.mesh.setTransfiniteCurve(self.lines_shroud[-1], self.n_point)
 
+        for i in range(len(self.lines_rad)):
+            self.model.mesh.embed(1, [self.lines_rad[i]], 2, 1)
+            if i == 0:
+                self.model.mesh.setTransfiniteCurve(self.lines_rad[i], int(self.n_point/self.inlet_fac))
+            elif i == len(self.lines_rad)-1:
+                self.model.mesh.setTransfiniteCurve(self.lines_rad[i], int(self.n_point / self.outlet_fac))
+            else:
+                if i % 2 == 0:
+                    L_av = 0.5 * (self.length_hub[i-1] + self.length_shroud[i-1])
+                else:
+                    L_av = 0.5 * (self.length_hub[i] + self.length_shroud[i])
+                self.model.mesh.setTransfiniteCurve(self.lines_rad[i], max([int(self.n_point*self.length_rad[i]/L_av), 3]))
     def revolve(self):
         # This function revolves the 2D periodic plane around the rotation axis to create a wedge.
         # The center point of the revolution is located at the origin and the rotation axis is set to be the x-axis.
-        self.Rev = self.factory.revolve([(2, 1)], 0, 0, 0, 1, 0, 0, self.wedge*np.pi/180, [self.n_sec])
+        self.Rev = self.factory.revolve([(2, 1)], 0, 0, 0, 0, 0, 1, self.wedge*np.pi/180, [self.n_sec])
+
+    # def makePlane(self):
+    #     # This function creates the first periodic plane by adding all the points, creating the lines and appending
+    #     # them to a curveloop to create a 2D plane mesh.
+    #
+    #     # Adding all the points to the mesh.
+    #     for i in range(len(self.pointID)):
+    #         self.factory.addPoint(self.xCoords[i], self.yCoords[i], self.zCoords[i], self.lC[i], self.pointID[i])
+    #
+    #     # Connecting the points by creating lines.
+    #     for i in range(len(self.lineID)):
+    #         self.factory.addLine(self.lineStart[i], self.lineEnd[i], self.lineID[i])
+    #
+    #     # Initiating curveloop and specifying surface.
+    #     self.factory.addCurveLoop(self.lineID, 1)
+    #     self.factory.addPlaneSurface([1], 1)
+
+    # def makeLines(self):
+    #     # This function sets up the start and end points of the lines that make up the periodic plane.
+    #
+    #     # Defining property lists.
+    #     i_line = 1       # Current line ID
+    #     start_line = []  # List containing line start points.
+    #     end_line = []    # List containing line end points.
+    #     lines = []       # List containing line tags.
+    #
+    #     # Looping over points in clockwise direction, starting at the hub at the inlet.
+    #     # The inlet is set as the first line.
+    #     start_line.append(self.pointID[0])
+    #     end_line.append(self.pointID[1])
+    #     lines.append(i_line)
+    #     i_line += 1
+    #
+    #     # Looping over the points on the shroud line.
+    #     for i in range(1, len(self.pointID)-1, 2):
+    #         start_line.append(self.pointID[i])
+    #         end_line.append(self.pointID[i+2])
+    #         lines.append(i_line)
+    #         i_line += 1
+    #
+    #     # Going down the outlet line.
+    #     start_line.append(self.pointID[-1])
+    #     end_line.append(self.pointID[-2])
+    #     lines.append(i_line)
+    #     i_line += 1
+    #
+    #     # Moving back to the starting point via the hub line.
+    #     for i in range(len(self.pointID)-2, 0, -2):
+    #         start_line.append(self.pointID[i])
+    #         end_line.append(self.pointID[i-2])
+    #         lines.append(i_line)
+    #         i_line += 1
+    #
+    #     # Storing line tags, starting points and end points.
+    #     self.lineID = lines
+    #     self.lineStart = start_line
+    #     self.lineEnd = end_line
 
     def makePlane(self):
-        # This function creates the first periodic plane by adding all the points, creating the lines and appending
-        # them to a curveloop to create a 2D plane mesh.
-
-        # Adding all the points to the mesh.
-        for i in range(len(self.pointID)):
-            self.factory.addPoint(self.xCoords[i], self.yCoords[i], self.zCoords[i], self.lC[i], self.pointID[i])
-
-        # Connecting the points by creating lines.
-        for i in range(len(self.lineID)):
-            self.factory.addLine(self.lineStart[i], self.lineEnd[i], self.lineID[i])
-
-        # Initiating curveloop and specifying surface.
-        self.factory.addCurveLoop(self.lineID, 1)
+        loop = []
+        loop.append(-self.lines_rad[0])
+        for i in self.lines_hub:
+            loop.append(i)
+        loop.append(self.lines_rad[-1])
+        for i in self.lines_shroud[::-1]:
+            loop.append(-i)
+        self.factory.addCurveLoop(loop, 1)
         self.factory.addPlaneSurface([1], 1)
-
     def makeLines(self):
-        # This function sets up the start and end points of the lines that make up the periodic plane.
-
-        # Defining property lists.
-        i_line = 1       # Current line ID
-        start_line = []  # List containing line start points.
-        end_line = []    # List containing line end points.
-        lines = []       # List containing line tags.
-
-        # Looping over points in clockwise direction, starting at the hub at the inlet.
-        # The inlet is set as the first line.
-        start_line.append(self.pointID[0])
-        end_line.append(self.pointID[1])
-        lines.append(i_line)
-        i_line += 1
-
-        # Looping over the points on the shroud line.
-        for i in range(1, len(self.pointID)-1, 2):
-            start_line.append(self.pointID[i])
-            end_line.append(self.pointID[i+2])
-            lines.append(i_line)
+        lines_hub = []
+        length_hub = []
+        lines_shroud = []
+        length_shroud = []
+        lines_rad = []
+        length_rad = []
+        #print(np.sqrt(np.sum(np.array(self.coords_hub[:, 1] - self.coords_hub[:, 0])**2)))
+        i_line = 1
+        for i in range(len(self.points_hub)-1):
+            self.factory.addLine(self.points_hub[i], self.points_hub[i+1], i_line)
+            lines_hub.append(i_line)
+            length_hub.append(np.sqrt(np.sum(np.array(self.coords_hub[:, i+1] - self.coords_hub[:, i])**2)))
             i_line += 1
-
-        # Going down the outlet line.
-        start_line.append(self.pointID[-1])
-        end_line.append(self.pointID[-2])
-        lines.append(i_line)
-        i_line += 1
-
-        # Moving back to the starting point via the hub line.
-        for i in range(len(self.pointID)-2, 0, -2):
-            start_line.append(self.pointID[i])
-            end_line.append(self.pointID[i-2])
-            lines.append(i_line)
+        for i in range(len(self.points_shroud)-1):
+            self.factory.addLine(self.points_shroud[i], self.points_shroud[i+1], i_line)
+            lines_shroud.append(i_line)
+            length_shroud.append(np.sqrt(np.sum(np.array(self.coords_shroud[:, i + 1] - self.coords_shroud[:, i]) ** 2)))
             i_line += 1
+        for i in range(len(self.points_hub)):
+            self.factory.addLine(self.points_hub[i], self.points_shroud[i], i_line)
+            lines_rad.append(i_line)
+            length_rad.append(np.sqrt(np.sum(np.array(self.coords_shroud[:, i] - self.coords_hub[:, i]) ** 2)))
+            i_line += 1
+        self.lines_hub = lines_hub
+        self.lines_shroud = lines_shroud
+        self.lines_rad = lines_rad
 
-        # Storing line tags, starting points and end points.
-        self.lineID = lines
-        self.lineStart = start_line
-        self.lineEnd = end_line
-
+        self.length_hub = length_hub
+        self.length_shroud = length_shroud
+        self.length_rad = length_rad
     def makePoints(self):
-        # This function sets up the points which make up the periodic plane of the BMF mesh.
-
         # Extracting the leading and trailing edge coordinates from Meangen.
         X_LE = self.M.X_LE
         R_LE = self.M.Z_LE
@@ -389,101 +457,187 @@ class Gmesh3D:
         # Calculating number of rows.
         n_rows = len(X_LE[0, :])
 
-        # Creating a list of chord lengths which will be used for local cell size calculation.
-        chords = np.zeros(2 * self.M.n_stage)
-        for i in range(self.M.n_stage):
-            if self.M.machineType == 'C':
-                chords[2 * i] += self.M.chord_R[i]
-                chords[2 * i + 1] += self.M.chord_S[i]
-            else:
-                chords[2 * i] += self.M.chord_S[i]
-                chords[2 * i + 1] += self.M.chord_R[i]
+        x_min = min(X_LE[:, 0] - 2*(X_TE[:, 0] - X_LE[:, 0]))
+        x_max = max(X_TE[:, -1] + 2*(X_TE[:, -1] - X_LE[:, -1]))
 
-        # Defining lists for x, y and z coordinates of the points, the cell size for each point and point tags.
-        X_p = []
-        Y_p = []
-        Z_p = []
-        L_c = []
-        points = []
-
-        # The first point is located at the domain inlet at the hub, which is 2 axial chords in front of the first
-        # blade row leading edge.
         i_point = 1
-        # Calculating x-coordinate.
-        X_inlet = min(X_LE[:, 0] - 2 * chords[0])
-        X_p.append(X_inlet)
-        # Calculating y-coordinate.
-        Y_p.append(R_LE[0, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
-        # Calculating z-coordinate.
-        Z_p.append(R_LE[0, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
-        points.append(i_point)
-        # Inlet cell size is defined as the first blade row cell size multiplied by the inlet cell size factor.
-        # L_c.append(self.inlet_fac * chords[0] / self.n_point)
-        L_c.append(self.inlet_fac * chords[0] / self.n_point)
+        Z_hub = []
+        X_hub = []
+        Y_hub = []
+        Z_shroud = []
+        X_shroud = []
+        Y_shroud = []
+
+        points_hub = []
+        points_shroud = []
+
+        theta = 0.5*self.wedge*np.pi/180
+        Z_hub.append(x_min)
+        X_hub.append(R_LE[0, 0]*np.sin(theta))
+        Y_hub.append(R_LE[0, 0] * np.cos(theta))
+        points_hub.append(i_point)
         i_point += 1
 
-        # The second point is located at the inlet at the shroud(above the first point).
-        X_p.append(X_inlet)
-        Y_p.append(R_LE[-1, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
-        Z_p.append(R_LE[-1, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
-        points.append(i_point)
-        # L_c.append(self.inlet_fac * chords[0] / self.n_point)
-        L_c.append(self.inlet_fac * chords[0] / self.n_point)
+        for i in range(n_rows):
+            Z_hub.append(X_LE[0, i])
+            X_hub.append(R_LE[0, i] * np.sin(theta))
+            Y_hub.append(R_LE[0, i] * np.cos(theta))
+            points_hub.append(i_point)
+            i_point += 1
+
+            Z_hub.append(X_TE[0, i])
+            X_hub.append(R_TE[0, i] * np.sin(theta))
+            Y_hub.append(R_TE[0, i] * np.cos(theta))
+            points_hub.append(i_point)
+            i_point += 1
+
+        Z_hub.append(x_max)
+        X_hub.append(R_TE[0, -1] * np.sin(theta))
+        Y_hub.append(R_TE[0, -1] * np.cos(theta))
+        points_hub.append(i_point)
         i_point += 1
 
-        # Looping over the blade rows to create the points on the hub and shroud surface.
-        for j in range(n_rows):
-            # Defining point at the leading edge of the blade row at the hub.
-            X_p.append(X_LE[0, j])
-            Y_p.append(R_LE[0, j] * np.sin(0.5 * self.wedge * np.pi/180))
-            Z_p.append(R_LE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
-            points.append(i_point)
-            L_c.append(chords[j] / self.n_point)
-            i_point += 1
-
-            # Defining point at the leading edge of the blade row at the shroud.
-            X_p.append(X_LE[-1, j])
-            Y_p.append(R_LE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
-            Z_p.append(R_LE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
-            points.append(i_point)
-            L_c.append(chords[j] / self.n_point)
-            i_point += 1
-
-            # Defining point at the trailing edge of the blade row at the hub.
-            X_p.append(X_TE[0, j])
-            Y_p.append(R_TE[0, j] * np.sin(0.5 * self.wedge * np.pi / 180))
-            Z_p.append(R_TE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
-            points.append(i_point)
-            L_c.append(chords[j] / self.n_point)
-            i_point += 1
-
-            # Defining point at the trailing edge of the blade row at the shroud.
-            X_p.append(X_TE[-1, j])
-            Y_p.append(R_TE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
-            Z_p.append(R_TE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
-            points.append(i_point)
-            L_c.append(chords[j] / self.n_point)
-            i_point += 1
-
-        # The outlet is located 2 axial chords of the last blade row downstream of its trailing edge.
-        X_outlet = max(X_TE[:, -1] + 2 * chords[-1])
-        X_p.append(X_outlet)
-        Y_p.append(Y_p[-2])
-        Z_p.append(Z_p[-2])
-        points.append(i_point)
-        # L_c.append(self.outlet_fac * chords[-1] / self.n_point)
-        L_c.append(self.outlet_fac * chords[-1] / self.n_point)
+        Z_shroud.append(x_min)
+        X_shroud.append(R_LE[-1, 0] * np.sin(theta))
+        Y_shroud.append(R_LE[-1, 0] * np.cos(theta))
+        points_shroud.append(i_point)
         i_point += 1
-        X_p.append(X_outlet)
-        Y_p.append(Y_p[-2])
-        Z_p.append(Z_p[-2])
-        points.append(i_point)
-        L_c.append(self.outlet_fac * chords[-1] / self.n_point)
+        for i in range(n_rows):
+            Z_shroud.append(X_LE[-1, i])
+            X_shroud.append(R_LE[-1, i] * np.sin(theta))
+            Y_shroud.append(R_LE[-1, i] * np.cos(theta))
+            points_shroud.append(i_point)
+            i_point += 1
+
+            Z_shroud.append(X_TE[-1, i])
+            X_shroud.append(R_TE[-1, i] * np.sin(theta))
+            Y_shroud.append(R_TE[-1, i] * np.cos(theta))
+            points_shroud.append(i_point)
+            i_point += 1
+        Z_shroud.append(x_max)
+        X_shroud.append(R_TE[-1, -1] * np.sin(theta))
+        Y_shroud.append(R_TE[-1, -1] * np.cos(theta))
+        points_shroud.append(i_point)
         i_point += 1
 
-        # Storing point tags and coordinates.
-        self.pointID = points
-        self.xCoords = X_p
-        self.yCoords = Y_p
-        self.zCoords = Z_p
-        self.lC = L_c
+        self.points_hub = points_hub
+        self.coords_hub = np.mat([X_hub, Y_hub, Z_hub])
+        self.points_shroud = points_shroud
+        self.coords_shroud = np.mat([X_shroud, Y_shroud, Z_shroud])
+        for i in range(len(X_hub)):
+            self.factory.addPoint(X_hub[i], Y_hub[i], Z_hub[i], 0.01, points_hub[i])
+            self.factory.addPoint(X_shroud[i], Y_shroud[i], Z_shroud[i], 0.01, points_shroud[i])
+
+    # def makePoints(self):
+    #     # This function sets up the points which make up the periodic plane of the BMF mesh.
+    #
+    #     # Extracting the leading and trailing edge coordinates from Meangen.
+    #     X_LE = self.M.X_LE
+    #     R_LE = self.M.Z_LE
+    #     X_TE = self.M.X_TE
+    #     R_TE = self.M.Z_TE
+    #
+    #     # Calculating number of rows.
+    #     n_rows = len(X_LE[0, :])
+    #
+    #     # Creating a list of chord lengths which will be used for local cell size calculation.
+    #     chords = np.zeros(2 * self.M.n_stage)
+    #     for i in range(self.M.n_stage):
+    #         if self.M.machineType == 'C':
+    #             chords[2 * i] += self.M.chord_R[i]
+    #             chords[2 * i + 1] += self.M.chord_S[i]
+    #         else:
+    #             chords[2 * i] += self.M.chord_S[i]
+    #             chords[2 * i + 1] += self.M.chord_R[i]
+    #
+    #     # Defining lists for x, y and z coordinates of the points, the cell size for each point and point tags.
+    #     X_p = []
+    #     Y_p = []
+    #     Z_p = []
+    #     L_c = []
+    #     points = []
+    #
+    #     # The first point is located at the domain inlet at the hub, which is 2 axial chords in front of the first
+    #     # blade row leading edge.
+    #     i_point = 1
+    #     # Calculating x-coordinate.
+    #     X_inlet = min(X_LE[:, 0] - 2 * chords[0])
+    #     Z_p.append(X_inlet)
+    #     # Calculating y-coordinate.
+    #     X_p.append(R_LE[0, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
+    #     # Calculating z-coordinate.
+    #     Y_p.append(R_LE[0, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
+    #     points.append(i_point)
+    #     # Inlet cell size is defined as the first blade row cell size multiplied by the inlet cell size factor.
+    #     # L_c.append(self.inlet_fac * chords[0] / self.n_point)
+    #     L_c.append(self.inlet_fac * chords[0] / self.n_point)
+    #     i_point += 1
+    #
+    #     # The second point is located at the inlet at the shroud(above the first point).
+    #     Z_p.append(X_inlet)
+    #     X_p.append(R_LE[-1, 0] * np.sin(0.5 * self.wedge * np.pi / 180))
+    #     Y_p.append(R_LE[-1, 0] * np.cos(0.5 * self.wedge * np.pi / 180))
+    #     points.append(i_point)
+    #     # L_c.append(self.inlet_fac * chords[0] / self.n_point)
+    #     L_c.append(self.inlet_fac * chords[0] / self.n_point)
+    #     i_point += 1
+    #
+    #     # Looping over the blade rows to create the points on the hub and shroud surface.
+    #     for j in range(n_rows):
+    #         # Defining point at the leading edge of the blade row at the hub.
+    #         Z_p.append(X_LE[0, j])
+    #         X_p.append(R_LE[0, j] * np.sin(0.5 * self.wedge * np.pi/180))
+    #         Y_p.append(R_LE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
+    #         points.append(i_point)
+    #         L_c.append(chords[j] / self.n_point)
+    #         i_point += 1
+    #
+    #         # Defining point at the leading edge of the blade row at the shroud.
+    #         Z_p.append(X_LE[-1, j])
+    #         X_p.append(R_LE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
+    #         Y_p.append(R_LE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
+    #         points.append(i_point)
+    #         L_c.append(chords[j] / self.n_point)
+    #         i_point += 1
+    #
+    #         # Defining point at the trailing edge of the blade row at the hub.
+    #         Z_p.append(X_TE[0, j])
+    #         X_p.append(R_TE[0, j] * np.sin(0.5 * self.wedge * np.pi / 180))
+    #         Y_p.append(R_TE[0, j] * np.cos(0.5 * self.wedge * np.pi / 180))
+    #         points.append(i_point)
+    #         L_c.append(chords[j] / self.n_point)
+    #         i_point += 1
+    #
+    #         # Defining point at the trailing edge of the blade row at the shroud.
+    #         Z_p.append(X_TE[-1, j])
+    #         X_p.append(R_TE[-1, j] * np.sin(0.5 * self.wedge * np.pi / 180))
+    #         Y_p.append(R_TE[-1, j] * np.cos(0.5 * self.wedge * np.pi / 180))
+    #         points.append(i_point)
+    #         L_c.append(chords[j] / self.n_point)
+    #         i_point += 1
+    #
+    #     # The outlet is located 2 axial chords of the last blade row downstream of its trailing edge.
+    #     X_outlet = max(X_TE[:, -1] + 2 * chords[-1])
+    #     Z_p.append(X_outlet)
+    #     X_p.append(X_p[-2])
+    #     Y_p.append(Y_p[-2])
+    #     points.append(i_point)
+    #     # L_c.append(self.outlet_fac * chords[-1] / self.n_point)
+    #     L_c.append(self.outlet_fac * chords[-1] / self.n_point)
+    #     i_point += 1
+    #     Z_p.append(X_outlet)
+    #     X_p.append(X_p[-2])
+    #     Y_p.append(Y_p[-2])
+    #     points.append(i_point)
+    #     L_c.append(self.outlet_fac * chords[-1] / self.n_point)
+    #     i_point += 1
+    #
+    #     # Storing point tags and coordinates.
+    #     self.pointID = points
+    #     self.xCoords = X_p
+    #     self.yCoords = Y_p
+    #     self.zCoords = Z_p
+    #     print(Z_p)
+    #     print(X_p)
+    #     print(Y_p)
+    #     self.lC = L_c

@@ -139,6 +139,10 @@ BODY_FORCE_ROTATION= OMEGA
 % Determine radius [in meters] for body force calculation
 BODY_FORCE_RADIUS= MEAN_RADIUS
 
+ROTATION_RATE_X = ROT_X
+ROTATION_RATE_Y = ROT_Y
+ROTATION_RATE_Z = ROT_Z
+
 % -------------------- BOUNDARY CONDITION DEFINITION --------------------------%
 %
 
@@ -153,7 +157,7 @@ INLET_TYPE= TOTAL_CONDITIONS
 % Mass Flow: (inlet marker, density, velocity magnitude, flow_direction_x,
 %           flow_direction_y, flow_direction_z, ... ) where flow_direction is
 %           a unit vector.
-MARKER_INLET= ( inlet, T_TOT_IN, P_TOT_IN, 1.0, 0.0, 0.0 )
+MARKER_INLET= ( inlet, T_TOT_IN, P_TOT_IN, UIN_X, UIN_Y, UIN_Z )
 %
 % Outlet boundary marker(s) (NONE = no marker)
 % Compressible: ( outlet marker, back pressure (static thermodynamic), ... )
@@ -166,7 +170,7 @@ RAMP_OUTLET_PRESSURE= NO
 % Format: ( periodic marker, donor marker, rotation_center_x, rotation_center_y,
 % rotation_center_z, rotation_angle_x-axis, rotation_angle_y-axis,
 % rotation_angle_z-axis, translation_x, translation_y, translation_z, ... )
-MARKER_PERIODIC= ( periodic_1, periodic_2, 0.0, 0.0, 0.0, WEDGE_ANGLE, 0.0, 0.0, 0.0, 0.0, 0.0 )
+MARKER_PERIODIC= ( periodic_1, periodic_2, 0.0, 0.0, 0.0, WEDGE_X, WEDGE_Y, WEDGE_Z, 0.0, 0.0, 0.0 )
 % Interface (s) definition, identifies the surface shared by
 % two different zones. The interface is defined by listing pairs of
 % markers (one from each zone connected by the interface)
