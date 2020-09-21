@@ -1,4 +1,4 @@
-Meangen2BFM is a program which allows for the creation of 2D and 3D body-force and (future) blade computation meshes for axial turbomachinery analysis from Meangen input. The user specifies the machine type, number of stages, duty coefficients, performance parameters and blade thickness parameters and the program creates a 2D or 3D mesh, alongside the input file required for body-force analysis in SU2. 
+Meangen2BFM is a program which allows for the creation of 2D and 3D body-force and (future) blade computation meshes for axial turbomachinery analysis from Meangen input. The user specifies the machine type, number of stages, duty coefficients, performance parameters and blade thickness parameters and the program creates a 2D or 3D mesh, alongside the input file required for body-force analysis in SU2.  
 
 For the program to work, installation of Parablade is required(the 'body-force' branch), GMesh and UMG2 and their installation location has to have been added to PATH and PYTHONPATH. There is a copy of Meangen already present in the 'executables' folder. The following lines should be added to the .bashrc file:
 

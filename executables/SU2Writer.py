@@ -123,3 +123,7 @@ class writeSU2input:
         os.system("sed -i 's/WEDGE_X/" + str(rot_axis[0] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/WEDGE_Y/" + str(rot_axis[1] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/WEDGE_Z/" + str(rot_axis[2] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
+        if self.IN["N_dim"][0] == 3.0:
+            os.system("sed -i 's/meshfilename/3DBFM_perio.su2/g' BFM_comp.cfg")
+        else:
+            os.system("sed -i 's/meshfilename/2DBFM_perio.su2/g' BFM_comp.cfg")

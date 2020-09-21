@@ -24,7 +24,8 @@ sys.path.append(HOME + "executables/")
 from Meangen2Parablade import Meangen2Parablade
 from Parablade2UMG2 import WriteUMG, writeStageMesh_BFM, writeStageMesh_Blade
 from SU2Writer import writeBFMinput, ReadUserInput, writeSU2input
-from Mesh3D import Gmesh3D, FullAnnulus, Gmesh3D2
+from Mesh3D import Gmesh3D, Gmesh2D, FullAnnulus
+# from ParaviewPost import AxialMachine
 
 # Reading input file
 DIR = os.getcwd() + '/'
@@ -100,8 +101,8 @@ for i in range(n_stage):
             os.system("MakeBlade.py Bladerow.cfg")
             print("Done!")
         # In case the dimension number is 2, UMG2 input files will be written, depending on the mesh case option.
-        if IN['N_dim'][0] == 2:
-            WriteUMG(j, i+1, M, IN, bodyForce=BFM, blade=Blade)
+        #if IN['N_dim'][0] == 2:
+            #WriteUMG(j, i+1, M, IN, bodyForce=BFM, blade=Blade)
 
         # Updating row count.
         row += 1
@@ -109,6 +110,7 @@ for i in range(n_stage):
 
 # The individual 2D meshes are combined into a full machine mesh. In case the dimension number is 3 and a BFM mesh is
 # desired, a suitable 3D mesh will be written. This option is currently not yet available for physical blades.
+
 if BFM:
     # Writing BFM input file suitable for SU2 BFM analysis.
     print("Writing Body-force SU2 input file...", end='     ')
@@ -119,11 +121,10 @@ if BFM:
     if IN['N_dim'][0] == 3:
         print("Writing 3D BFM mesh:...")
         Gmesh3D(M, IN)
-        #FullAnnulus(M, IN)
         print("Done!")
     else:
-        print("Writing Body-force SU2 machine mesh file...", end='     ')
-        writeStageMesh_BFM(M)
+        print("Writing 2D BFM mesh...", end='     ')
+        Gmesh2D(M, IN)
         print("Done!")
 
 #
@@ -137,12 +138,3 @@ if Blade:
         print("Done!")
 print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
 writeSU2input(IN)
-
-# if IN["ADJOINT"] == 'YES':
-#     print("Running SU2...")
-#     os.system("SU2_CFD BFM_comp.cfg")
-#     print("Done!")
-#     print("Computing objective gradients...")
-#     line = "pvpython < "+HOME+"executables/GradientPostProcessor.py"
-#     os.system(line)
-#     print("Done!")
