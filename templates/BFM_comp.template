@@ -135,9 +135,6 @@ BODY_FORCE_TYPE= VARIABLE_BF
 
 % Determine rotation for body force calculation in RPM (For 2D, negative if moving in the negative y-direction)
 BODY_FORCE_ROTATION= OMEGA
-%
-% Determine radius [in meters] for body force calculation
-BODY_FORCE_RADIUS= MEAN_RADIUS
 
 ROTATION_RATE_X = ROT_X
 ROTATION_RATE_Y = ROT_Y
