@@ -308,7 +308,7 @@ class Gmesh3D:
         file.close()
 
         # Executing SU2_PERIO to create periodic mesh and storing output in output file.
-        os.system("SU2_PERIO createPerio.cfg")
+        os.system("SU2_PERIO createPerio.cfg > SU2_PERIO.out")
 
     def nameBoundaries(self):
         # This function gives names to all the boundaries of the 3D mesh so boundary conditions can be assigned in the

@@ -25,6 +25,7 @@ from Meangen2Parablade import Meangen2Parablade
 from Parablade2UMG2 import WriteUMG, writeStageMesh_BFM, writeStageMesh_Blade
 from SU2Writer import writeBFMinput, ReadUserInput, writeSU2input
 from Mesh3D import Gmesh3D, Gmesh2D, FullAnnulus
+from dataPlotter import axial_data_plotter
 # from ParaviewPost import AxialMachine
 
 # Reading input file
@@ -138,3 +139,10 @@ if Blade:
         print("Done!")
 print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
 writeSU2input(IN)
+
+# os.system("SU2_CFD BFM_comp.cfg")
+print("Postprocessing simulation data....", end='       ')
+os.system("pvpython "+HOME+"executables/ParaviewPost.py "+INFile)
+print("done!")
+
+axial_data_plotter()
