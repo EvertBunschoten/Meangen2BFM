@@ -1,67 +1,113 @@
-#!/home/evert/anaconda3/bin/python3
-
+# The classes in this script are for postprocessing purposes using Paraview.
 import numpy as np
 from paraview.simple import *
 import os
 import sys
 
+# Defining the path to the Meangen2BFM installation folder
 HOME = os.environ["M2BFM"]
+# Appending the executables folder to the path in order for the other scripts to be accessed
 sys.path.append(HOME + "executables/")
 
-inFile = sys.argv[-1]
+inFile = sys.argv[-1]   # Meangen2BFM configuration file
 from SU2Writer import ReadUserInput
 from StagenReader import StagenReader
 
-IN = ReadUserInput(inFile)
+IN = ReadUserInput(inFile)  # Transforming the configuration file into a class containing all the design variables and
+                            # simulation settings.
 
 class extractData_BFM:
-    fileName = "flow_BFM.vtk"
-    axial_bounds = []
-    radial_bounds = []
-    output_datasets = []
-    output_data = type('', (), {})()
-    fluid_parameters = type('', (), {})()
-    calculators = type('', (), {})()
-    h = 1e-5
+    # This class is used for the extraction and processing of the flow field as output by SU2. The class writes user-
+    # defined data in axial direction, averaged by the momentum in axial direction. Additionally, flow data trends in
+    # radial direction are extracted at the inlet, outlet and row gaps in the machine.
+
+    fileName = "flow_BFM.vtk"   # default SU2 vtk output file name
+    axial_bounds = []   # Domain bounds in axial direction
+    radial_bounds = []  # Domain bounds in radial direction
+    output_datasets = []    # List with the names of output flow data sets
+    output_data = type('', (), {})()    # Output data object
+    fluid_parameters = type('', (), {})()   # Simulation fluid parameter object
+    calculators = type('', (), {})()    # Paraview calculator object
+    h = 1e-5    # Domain margin at the inlet and outlet for evaluation of inlet and outlet properties
 
     def __init__(self, IN):
-        self.IN = IN
-        self.fluid_parameters.gamma = self.IN["gamma"][0]
-        self.fluid_parameters.R_gas = self.IN["R_gas"][0]
-        self.fluid_parameters.C_p = self.IN["gamma"][0]*self.IN["R_gas"][0]/(self.IN["gamma"][0] - 1)
+        self.IN = IN    # Storing the Maengen2BFM input parameters
+        self.fluid_parameters.gamma = self.IN["gamma"][0]   # Storing the specific heat ratio
+        self.fluid_parameters.R_gas = self.IN["R_gas"][0]   # Storing the fluid gas constant
+        self.fluid_parameters.C_p = self.IN["gamma"][0]*self.IN["R_gas"][0]/(self.IN["gamma"][0] - 1)   # Storing the
+                                                                                            # specific enthalpy
+        # Creating folder for output data
+        if not os.path.isdir("Performance_Data"):
+            os.system("mkdir Performance_Data")
 
-        os.system("mkdir Performance_Data")
+        # Reading SU2 output vtk file
         self.flow_3D_BFM = LegacyVTKReader(FileNames=[self.fileName])
+
+        # Storing leading edge and trailing edge coordinates
         self.get_row_geom()
+
+        # Obtaining flow domain bounds
         self.get_domain_bounds()
+
+        # Defining flow data calculators
         self.set_functions()
+
+        # Collecting axial and radial flow data
         self.collect_data()
+
+        # Computing and writing relevant performance objectives
         self.compute_objectives()
+
     def collect_data(self):
+        # In this function, the axial and radial flow data are extracted and written to output files
+
+        # Listing all calculators, alongside the axial coordinate and mass flow rate
         self.output_datasets = ['X', 'mdot'] + list(self.calculators.__dict__.keys())
+
+        # Extract mass flux-averaged flow data in axial direction
         self.extract_axial_data()
+        # Write axial data to output file
         self.write_axial_data()
 
+        # Extract flow data in radial direction at the inlet, outlet and row gaps
         self.extract_radial_data()
+        # Writing radial flow data to output file
         self.write_radial_data()
+
     def compute_objectives(self):
+        # This function computes some relevant machine objectives which can be used for design optimization purposes.
+        # Objectives such as mass flow rate, total-to-total efficiency, power and outlet flow angle are calculated and
+        # written to a file.
+
+        # Extracting the mass flow rate
         mdot = self.output_data.axial_data.mdot[0]
+
+        # Inlet and outlet stagnation temperature
         Tt_in = self.output_data.axial_data.wTt[0]
         Tt_out = self.output_data.axial_data.wTt[-1]
+
+        # Inlet and outlet stagnation pressure
         Pt_in = self.output_data.axial_data.wPt[0]
         Pt_out = self.output_data.axial_data.wPt[-1]
 
         gamma = self.fluid_parameters.gamma
+
+        # Calculating the isentropic outlet stagnation temperature
         Tt_out_s = Tt_in * (Pt_out/Pt_in) ** ((gamma - 1)/gamma)
 
+        # Total-to-total efficiency is calculated depending on the machine type
         if self.IN["TYPE"] == 'T':
             eta_tt = (Tt_out - Tt_in)/(Tt_out_s - Tt_in)
         else:
             eta_tt = (Tt_out_s - Tt_in) / (Tt_out - Tt_in)
 
+        # Calculating the machine input power
         power_in = self.fluid_parameters.C_p * mdot * (Tt_out - Tt_in)
+
+        # Outlet absolute flow angle
         angle_out = self.output_data.axial_data.Alpha[-1]
 
+        # Opening the objective output file and writing the calculated objectives
         self.objective_file = open("Performance_Data/Machine_objectives.txt", "w+")
         self.objective_file.write("total-to-total_efficiency = "+str(eta_tt)+"\n")
         self.objective_file.write("power = "+str(power_in)+"\n")
@@ -70,6 +116,9 @@ class extractData_BFM:
         self.objective_file.close()
 
     def write_axial_data(self):
+        # This function takes the mass-flux-averaged data in axial direction and writes them to an output file.
+
+        # Opening axial data output file
         self.output_file = open("Performance_Data/axial_data.txt", "w+")
         self.output_file.write("\t".join([s for s in self.output_datasets])+"\n")
         axial_range = self.output_data.axial_data.X

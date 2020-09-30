@@ -3,11 +3,11 @@
 # --------------------------------------------------------------------------------------------------------------- #
 # This code serves the purpose of using general engineering inputs for axial turbomachinery design and translate them
 # to a suitable 2 or 3-dimensional mesh and body-force method input for SU2. This program works in conjunction with
-# Parablade(the body-force branch), which generates the detailed blade shape from Meangen output. For 3D meshing,
-# Gmesh has to be installed and added to the PYTHONPATH. For 2D meshing, UMG2 has to be installed and added to the PATH
-# as well. For body-force analyses in SU2, the feature_bodyforce_turbo has to be cloned and installed on the user's
-# machine. Template files for all relevant configuration files can be found in the 'templates' folder and all scripts
-# are located in the 'executables' folder.
+# Meangen, Parablade(the body-force branch), which generates the detailed blade shape from Meangen output.
+# For 3D meshing, Gmesh has to be installed and added to the PYTHONPATH. For 2D meshing, UMG2 has to be installed and
+# added to the PATH as well. For body-force analyses in SU2, the feature_bodyforce_turbo has to be cloned and installed
+# on the user's machine. Template files for all relevant configuration files can be found in the 'templates' folder and
+# all scripts are located in the 'executables' folder.
 #
 # Author: E.C.Bunschoten
 # Institution: TU Delft
