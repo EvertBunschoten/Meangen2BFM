@@ -4,7 +4,7 @@ import numpy as np
 T_in = 281.1614467
 P_in = 101478.5239
 
-BFM = LegacyVTKReader(FileNames=["BFMOUTPUT_3.vtk"])
+BFM = LegacyVTKReader(FileNames=["BFMOUTPUT.vtk"])
 
 TdS = Calculator(Input=BFM)
 TdS.ResultArrayName='dS'
