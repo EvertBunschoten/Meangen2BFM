@@ -18,7 +18,7 @@ class axial_data_plotter:
             os.system("mkdir Performance_Data")
         self.direct = os.getcwd() + '/Performance_Data/'
         if os.path.isdir(self.direct + "Images"):
-            os.system("rm -r Images")
+            os.system("rm -r "+self.direct + "Images")
         self.extract_output_data()
         self.plot_data()
 
