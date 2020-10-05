@@ -17,13 +17,16 @@ class axial_data_plotter:
         if not os.path.isdir(os.getcwd()+'/Performance_Data'):
             os.system("mkdir Performance_Data")
         self.direct = os.getcwd() + '/Performance_Data/'
+        if os.path.isdir(self.direct + "Images"):
+            os.system("rm -r Images")
         self.extract_output_data()
         self.plot_data()
 
 
     def plot_data(self):
         data_list = list(self.Data.__dict__.keys())
-        os.system("mkdir " + self.direct + "Images")
+        if not os.path.isdir(self.direct + "Images"):
+            os.system("mkdir " + self.direct + "Images")
         for data in data_list:
             os.system("mkdir " + self.direct + "Images/" + data)
             if data == 'axial_data':

@@ -253,6 +253,7 @@ class extractData_BFM:
 
         self.define_function(name='Alpha', input_data=self.flow_3D_BFM,
                              function='Momentum_Z*(180/'+str(np.pi)+')*atan((Momentum_Y * coordsX/sqrt(coordsX^2 + coordsY^2) - Momentum_X*coordsY/sqrt(coordsX^2 + coordsY^2))/Momentum_Z)')
+        self.define_function(name='wMach', input_data=self.flow_3D_BFM, function='Momentum_Z*Mach')
 
         self.flow_data = AppendAttributes(Input=[getattr(self.calculators, s) for s in list(self.calculators.__dict__.keys())])
 

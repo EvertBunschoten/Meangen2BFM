@@ -140,9 +140,13 @@ if Blade:
 print("Total geometry and mesh generation took "+str(format(time.time() - t_start, ".2f")) + " seconds")
 writeSU2input(IN)
 
-# os.system("SU2_CFD BFM_comp.cfg")
-print("Postprocessing simulation data....", end='       ')
-os.system("pvpython "+HOME+"executables/ParaviewPost.py "+INFile)
-print("done!")
+if IN["SOLVE"] == 'AUTOMATIC':
+    os.system("SU2_CFD BFM_comp.cfg")
 
-axial_data_plotter()
+if IN["POSTPROCESS"] == 'YES':
+    print("Postprocessing simulation data....")
+    os.system("pvpython "+HOME+"executables/ParaviewPost.py "+INFile)
+    print("done!")
+    print("Creating data plots...")
+    axial_data_plotter()
+    print("Done!")
