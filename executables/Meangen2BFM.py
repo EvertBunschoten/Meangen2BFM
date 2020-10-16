@@ -141,6 +141,7 @@ print("Total geometry and mesh generation took "+str(format(time.time() - t_star
 writeSU2input(IN)
 
 if IN["SOLVE"] == 'AUTOMATIC':
+    print("Solving...")
     os.system("SU2_CFD BFM_comp.cfg")
 
 if IN["POSTPROCESS"] == 'YES':
@@ -150,3 +151,5 @@ if IN["POSTPROCESS"] == 'YES':
     print("Creating data plots...")
     axial_data_plotter()
     print("Done!")
+
+print("Total processing time: " + str(time.time() - t_start))

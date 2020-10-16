@@ -11,7 +11,7 @@ fracfactor = 1.3
 tickformat='%.2f'
 figsize=(6, 5)
 
-save_direct = os.getcwd()+'Images/'
+save_direct = os.getcwd()+'/Images/'
 
 z_blade, p_blade, T_blade, pt_blade, Tt_blade, ds_blade, alpha_blade, Mach_blade, flux_blade = np.loadtxt(save_direct+"../axialData_blade.txt", unpack=True, delimiter='\t', skiprows=1)
 z_bfm, p_bfm, T_bfm, pt_bfm, Tt_bfm, ds_bfm, alpha_bfm, Mach_bfm, flux_bfm = np.loadtxt(save_direct+"../axialData_BFM.txt", unpack=True, delimiter='\t', skiprows=1)
