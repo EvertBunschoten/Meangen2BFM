@@ -133,6 +133,7 @@ BODY_FORCE_VECTOR= ( 0.0, 0.0, 0.0 )
 % Select what type of body force to use (CONSTANT_BF, VARIABLE_BF)
 BODY_FORCE_TYPE= VARIABLE_BF
 
+BFM_FORMULATION= THOLLET
 % Determine rotation for body force calculation in RPM (For 2D, negative if moving in the negative y-direction)
 BODY_FORCE_ROTATION= OMEGA
 

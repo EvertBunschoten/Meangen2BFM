@@ -18,7 +18,7 @@ Cp = gamma * R / (gamma - 1)
 paraview.simple._DisableFirstRenderCameraReset()
 
 # create a new 'Legacy VTK Reader'
-flow = LegacyVTKReader(FileNames=['sym_stator_BFM.vtk'])
+flow = LegacyVTKReader(FileNames=['sym_stator_BFM_thollet.vtk'])
 
 z_inlet = -0.09
 z_outlet = 0.14
@@ -73,7 +73,7 @@ slice2.SliceType.Normal = [0, 0, 1]
 
 IV = IntegrateVariables(Input=slice2)
 P = []
-outfile = open("axialData_BFM.txt", "w+")
+outfile = open("axialData_BFM_thollet.txt", "w+")
 outfile.write("#axial coordinate,\tp,\tT,\tp_t,\tT_t,\tds,\talpha,\tMach,\tflux\n")
 for z in axial_range:
     print(z)

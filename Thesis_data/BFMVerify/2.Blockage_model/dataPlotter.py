@@ -10,11 +10,11 @@ T_t_in = 288.7
 fracfactor = 1.3
 tickformat='%.2f'
 figsize=(6, 5)
-
+file_format = 'pdf'
 save_direct = os.getcwd()+'/Images/'
 
-z_blade, p_blade, T_blade, pt_blade, Tt_blade, ds_blade, alpha_blade, Mach_blade, flux_blade = np.loadtxt(save_direct+"../axialData_blade.txt", unpack=True, delimiter='\t', skiprows=1)
-z_bfm, p_bfm, T_bfm, pt_bfm, Tt_bfm, ds_bfm, alpha_bfm, Mach_bfm, flux_bfm = np.loadtxt(save_direct+"../axialData_BFM.txt", unpack=True, delimiter='\t', skiprows=1)
+z_blade, p_blade, T_blade, pt_blade, Tt_blade, ds_blade, alpha_blade, Mach_blade, flux_blade = np.loadtxt(save_direct+"../axialData_BFM_thollet.txt", unpack=True, delimiter='\t', skiprows=1)
+z_bfm, p_bfm, T_bfm, pt_bfm, Tt_bfm, ds_bfm, alpha_bfm, Mach_bfm, flux_bfm = np.loadtxt(save_direct+"../axialData_BFM_hall.txt", unpack=True, delimiter='\t', skiprows=1)
 
 
 fig = plt.figure(0, figsize=figsize)
@@ -31,7 +31,7 @@ ax.grid()
 ax.tick_params(axis='both', which='both', labelsize=ticksize)
 ax.xaxis.set_major_formatter(FormatStrFormatter(tickformat))
 ax.yaxis.set_major_formatter(FormatStrFormatter(tickformat))
-fig.savefig(save_direct + 'P_stat.eps', bbox_inches='tight', format='eps')
+fig.savefig(save_direct + 'P_stat_thollet.'+file_format, bbox_inches='tight', format=file_format)
 
 fig = plt.figure(1, figsize=figsize)
 ax = fig.add_subplot(111)
@@ -47,7 +47,7 @@ ax.grid()
 ax.tick_params(axis='both', which='both', labelsize=ticksize)
 ax.xaxis.set_major_formatter(FormatStrFormatter(tickformat))
 ax.yaxis.set_major_formatter(FormatStrFormatter(tickformat))
-fig.savefig(save_direct + 'Mach.eps', bbox_inches='tight', format='eps')
+fig.savefig(save_direct + 'Mach_thollet.'+file_format, bbox_inches='tight', format=file_format)
 
 
 fig = plt.figure(2, figsize=figsize)
@@ -64,6 +64,6 @@ ax.grid()
 ax.tick_params(axis='both', which='both', labelsize=ticksize)
 ax.xaxis.set_major_formatter(FormatStrFormatter(tickformat))
 ax.yaxis.set_major_formatter(FormatStrFormatter(tickformat))
-fig.savefig(save_direct + 'flux.eps', bbox_inches='tight', format='eps')
+fig.savefig(save_direct + 'flux_thollet.'+file_format, bbox_inches='tight', format=file_format)
 
 plt.show()
