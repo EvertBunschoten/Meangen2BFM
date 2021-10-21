@@ -20,9 +20,9 @@ class writeBFMinput:
 
         # Creating machine input file for BFM interpolation.
         self.dir = os.getcwd()
-        self.BFMfile = open(self.dir + "/BFM_stage_input", "w+")
+        self.BFMfile = open(self.dir + "/BFM_stage_input.drg", "w+")
         # Getting section and axial point information from Parablade output.
-        self.getBFMinputs()
+        #self.getBFMinputs()
         # Writing number of rows, sections and axial points into the BFM interpolation file.
         #self.BFMfile.write("%i\t%i\t%i\n" % (self.n_rows, self.n_sec, self.n_points))
         # Appending the individual blade row BFM files into the main BFM interpolation file.
@@ -71,14 +71,14 @@ class writeBFMinput:
         self.BFMfile.write("\n\n")
         self.BFMfile.write("[number of data entries in chordwise direction]\n")
         for i in range(self.M.n_stage):
-            self.BFMfile.write('%i\t%i\t' % (self.M.Np_mesh, self.M.Np_mesh))
+            self.BFMfile.write('%i\t%i\t' % (100, 100))
         self.BFMfile.write("\n\n")
         self.BFMfile.write("[number of data entries in spanwise direction]\n")
         for i in range(self.M.n_stage):
             self.BFMfile.write('%i\t%i\t' % (self.M.Np_mesh, self.M.Np_mesh))
         self.BFMfile.write("\n\n")
         self.BFMfile.write("[variable names]\n")
-        self.BFMfile.write("1:axial_coordinate 2:radial_coordinate 3:n_ax 4:n_tang 5:n_rad 6:blockage_factor 7:x_LE 8:axial_chord 9:rotation_factor 10:blade_count\n\n")
+        self.BFMfile.write("1:axial_coordinate 2:radial_coordinate 3:n_ax 4:n_tang 5:n_rad 6:blockage_factor 7:x_LE 8:axial_chord\n\n")
         self.BFMfile.write("</header>\n\n")
         self.BFMfile.write("<data>\n")
         # Looping over the number of stages.
@@ -87,9 +87,14 @@ class writeBFMinput:
             for j in [1, 2]:
                 self.BFMfile.write("<blade row>\n")
                 self.BFMfile.write("<tang section>\n")
-                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/output/mesh_files/BFM_input", "r") as file:
+                with open(self.dir + "/Stage_"+str(i+1)+"/Bladerow_"+str(j)+"/output/mesh_files/BFM_input.drg", "r") as file:
                     # Skipping the first line in the blade row file.
-                    lines = file.readlines()[1:]
+                    lines = file.readlines()
+                    start_line = np.where(np.array(lines) == "<blade row>\n")[0]
+                    start_line = start_line[0]
+                    
+                    start_line += 2
+                    lines = lines[start_line:-3]
                     # Distinguishing between rotor and stator row, depending on machine type.
                     if self.M.machineType == 'C':
                         # For a compressor, the rotor row is followed by a stator row.
@@ -101,22 +106,9 @@ class writeBFMinput:
                         blades = [self.M.N_b_S[i], self.M.N_b_R[i]]
                     #self.BFMfile.write(lines[0])
                     begin_section = True
-                    
+                    self.BFMfile.writelines(lines)
                     i_line = 0
-                    for i_rad in range(self.M.Np_mesh):
-                        self.BFMfile.write("<radial section>\n")
-                        i_line += 1
-                        for i_ax in range(self.M.Np_mesh):
-                            line = lines[i_line]
-                            self.BFMfile.write(line.strip()+"\t"+str(rotFac[j-1])+"\t"+str(int(blades[j-1]))+"\n")
-                            i_line += 1
-                        self.BFMfile.write("</radial section>\n")
 
-                    # for line in lines[1:-1]:
-                    #     # Writing all lines of the blade row BFM file to the machine BFM file, as well as the rotation
-                    #     # factor and the number of blades.
-                    #     self.BFMfile.write(line.strip()+"\t"+str(rotFac[j-1])+"\t"+str(int(blades[j-1]))+"\n")
-                   # self.BFMfile.write(lines[-1])
                 file.close()
                 self.BFMfile.write("</tang section>\n")
                 self.BFMfile.write("</blade row>\n")
@@ -152,7 +144,7 @@ class writeSU2input:
         HOME = os.environ["M2BFM"]
         self.IN = IN
         template_dir = HOME + "templates/"
-        os.system("cp "+template_dir+"BFM_comp.template ./BFM_comp.cfg")
+        os.system("cp "+template_dir+"BFM_comp_template_v7.template ./BFM_comp.cfg")
         self.ReplaceTerms()
 
     def ReplaceTerms(self):
@@ -162,7 +154,6 @@ class writeSU2input:
 
         os.system("sed -i 's/GAMMA_FLUID/" + str(gamma) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/R_FLUID/" + str(R) + "/g' BFM_comp.cfg")
-        os.system("sed -i 's/CP_FLUID/" + str(gamma * R / (gamma - 1)) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/OMEGA/" + str(self.IN["Omega"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/ROT_X/" + str(rot_axis[0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/ROT_Y/" + str(rot_axis[1]) + "/g' BFM_comp.cfg")
@@ -170,14 +161,9 @@ class writeSU2input:
         os.system("sed -i 's/UIN_X/" + str(rot_axis[0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/UIN_Y/" + str(rot_axis[1]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/UIN_Z/" + str(rot_axis[2]) + "/g' BFM_comp.cfg")
-        os.system("sed -i 's/MEAN_RADIUS/" + str(self.IN["r_m"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/P_TOT_IN/" + str(self.IN["P_t_in"][0] * 1e5) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/T_TOT_IN/" + str(self.IN["T_t_in"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/P_STAT_OUT/" + str(self.IN["P_s_out"][0] * 1e5) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/WEDGE_X/" + str(rot_axis[0] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/WEDGE_Y/" + str(rot_axis[1] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
         os.system("sed -i 's/WEDGE_Z/" + str(rot_axis[2] * self.IN["WEDGE"][0]) + "/g' BFM_comp.cfg")
-        if self.IN["N_dim"][0] == 3.0:
-            os.system("sed -i 's/meshfilename/3DBFM_perio.su2/g' BFM_comp.cfg")
-        else:
-            os.system("sed -i 's/meshfilename/2DBFM_perio.su2/g' BFM_comp.cfg")

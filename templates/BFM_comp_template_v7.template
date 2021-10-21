@@ -84,11 +84,11 @@ FLUID_MODEL= IDEAL_GAS
 %
 % Ratio of specific heats (1.4 default and the value is hardcoded
 %                          for the model STANDARD_AIR)
-GAMMA_VALUE= 1.4
+GAMMA_VALUE= GAMMA_FLUID
 %
 % Specific gas constant (287.058 J/kg*K default and this value is hardcoded 
 %                        for the model STANDARD_AIR)
-GAS_CONSTANT= 287.15
+GAS_CONSTANT= R_FLUID
 %
 % Critical Temperature (273.15 K by default)
 CRITICAL_TEMPERATURE= T_CRIT_FLUID
@@ -111,11 +111,11 @@ BODY_FORCE_TYPE= VARIABLE_BF
 BFM_INPUT_FILENAME= BFM_INPUT_FILE_NAME
 
 % Determine rotation for body force calculation in RPM (For 2D, negative if moving in the negative y-direction)
-BODY_FORCE_ROTATION= 4000.0
+BODY_FORCE_ROTATION= OMEGA
 
 BFM_FORMULATION= THOLLET
 
-BFM_ROTATION_AXIS = 1.0, 0.0, 0.0
+BFM_ROTATION_AXIS = ROT_X, ROT_Y, ROT_Z
 % --------------------------- VISCOSITY MODEL ---------------------------------%
 %
 % Viscosity model (SUTHERLAND, CONSTANT_VISCOSITY).
@@ -151,7 +151,7 @@ MARKER_SYM=(HUB_MARKER, SHROUD_MARKER)
 %
 % Periodic boundary marker(s) (NONE = no marker)
 % Format: ( periodic marker, donor marker, rot_cen_x, rot_cen_y, rot_cen_z, rot_angle_x-axis, rot_angle_y-axis, rot_angle_z-axis, translation_x, translation_y, translation_z)
-MARKER_PERIODIC= ( PERIODIC_1_MARKER, PERIODIC_2_MARKER, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0 )
+MARKER_PERIODIC= ( PERIODIC_1_MARKER, PERIODIC_2_MARKER, 0.0, 0.0, 0.0, WEDGE_X, WEDGE_Y, WEDGE_Z, 0.0, 0.0, 0.0 )
 
 SPATIAL_FOURIER= YES
 %
@@ -160,8 +160,8 @@ SPATIAL_FOURIER= YES
 % Inflow and Outflow markers must be specified, for each blade (zone), following the natural groth of the machine (i.e, from the first blade to the last)
 
 INLET_TYPE= TOTAL_CONDITIONS
-MARKER_INLET=(INLET_MARKER, 280.0, 150000.0, 1.0, 0.0, 0.0)
-MARKER_OUTLET= ( OUTLET_MARKER, 189000.0 )
+MARKER_INLET=(INLET_MARKER, T_TOT_IN, P_TOT_IN, UIN_X, UIN_Y, UIN_Z)
+MARKER_OUTLET= ( OUTLET_MARKER, P_STAT_OUT )
 
 % ------------- COMMON PARAMETERS DEFINING THE NUMERICAL METHOD ---------------%
 %

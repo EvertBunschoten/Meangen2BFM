@@ -257,9 +257,9 @@ class Gmesh3D:
         gmsh.write(self.fileName)
 
         # Transforming mesh to periodic mesh.
-        print("Building periodic mesh...")
-        self.makePerio()
-        print("Done!")
+        # print("Building periodic mesh...")
+        # self.makePerio()
+        # print("Done!")
 
         # In case of selection of mesh visualization option, the gmesh GUI will display the 3D BFM mesh.
         if IN["PLOT_MESH"] == 'YES':
